@@ -84,7 +84,7 @@ t0.fill(2, 6, 19, 6, '#')            # shrine platform
 t0.fill(2, 0, 19, 1, '#')            # shrine roof
 t0.put(8, 5, 'o')                    # the Orb
 t0.put(4, 5, 'c')
-t0.fill(50, 1, 57, 1, '#')           # exit up to the bell hall
+t0.fill(29, 1, 35, 1, '#')           # exit up to the bell hall
 
 HEADER = """import type { LevelDef } from '../../game/level';
 
