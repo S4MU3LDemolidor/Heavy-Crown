@@ -92,3 +92,39 @@ if (which === 'all' || which === 'npcs') {
   savePng(sheet, 'previews/npcs.png', 6, '#4a4458');
   console.log('previews/npcs.png');
 }
+
+if (which === 'level') {
+  // whole levels as one tall image each, with objects marked: npm run art:preview level 2 3 4
+  const ids = process.argv.slice(3).map(Number);
+  const world = buildWorld(LEVELS, { requireStart: false });
+  const MARK: Record<string, number> = { bell: 0xff30a0d0, item: 0xff3fd0ff, npc: 0xff4040ff, ring: 0xffffff40, note: 0xffffffff, lift: 0xff40a0ff, scare: 0xffff00ff, gate: 0xff0080ff };
+  for (const id of ids) {
+    const li = world.levels.findIndex((l) => l.id === id);
+    if (li < 0) continue;
+    const bands = world.bandLevel.map((b, i) => [b, i]).filter(([b]) => b === li).map(([, i]) => i);
+    const theme = THEMES[world.levels[li].theme];
+    const img = new PixelBuffer(VIEW_W, bands.length * SCREEN_H);
+    bands.forEach((band, k) => {
+      const camY = band * SCREEN_H;
+      const view = new PixelBuffer(VIEW_W, SCREEN_H);
+      view.blit(paintSky(theme), 0, 0);
+      for (const name of ['far', 'mid', 'near'] as LayerName[]) {
+        const h = layerHeight(name, levelSpan(world, li));
+        view.blit(paintLayer(theme, name, h), 0, layerY(world, li, name, h, camY));
+      }
+      view.blit(paintScreen(world, band, theme).buf, 0, 0);
+      img.blit(view, 0, k * SCREEN_H);
+    });
+    const y0 = bands[0] * SCREEN_H;
+    for (const s of world.spawns) {
+      const y = s.ty * 8 - y0;
+      if (y < 0 || y >= img.h) continue;
+      const kind = s.entry.kind === 'object' ? (s.entry.object === 'rope_hook' ? 'gate' : s.entry.object) : s.entry.kind;
+      const col = MARK[kind];
+      if (!col) continue;
+      for (let dy = 1; dy < 7; dy++) for (let dx = 1; dx < 7; dx++) if (dx === 1 || dy === 1 || dx === 6 || dy === 6) img.set(s.tx * 8 + dx, y + dy, col);
+    }
+    savePng(img, `previews/level-${String(id).padStart(2, '0')}.png`, 1);
+    console.log(`previews/level-${String(id).padStart(2, '0')}.png`);
+  }
+}

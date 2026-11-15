@@ -1,9 +1,12 @@
 import type { LevelDef } from '../../game/level';
 
-/** Level I — The Overgrown Base (spec section 9). Screens listed top to bottom. */
+/** Level 1 — the Overgrown Base, Act I's opener (hand-made in the MVP). Screens listed top to bottom. */
 export const L1: LevelDef = {
   id: 1,
   theme: 'overgrown',
+  entry: [2, 5, 29],
+  exit: [0, 35, 2],
+  load: 5,
   legend: {
     c: { kind: 'item', item: 'coin_pouch' },
     r: { kind: 'item', item: 'rope' },
@@ -11,6 +14,7 @@ export const L1: LevelDef = {
     G: { kind: 'object', object: 'gate', props: { key: 'iron_key' } },
     h: { kind: 'object', object: 'rope_hook' },
     n: { kind: 'object', object: 'note', props: { id: 'note1' } },
+    K: { kind: 'object', object: 'npc', props: { id: 'crow', scene: 'l1' } },
   },
   screens: [
     [
@@ -115,7 +119,7 @@ export const L1: LevelDef = {
       '####     #######...........................            #####',
       '####          ........####.................            #####',
       '####       n  .......#######...............            #####',
-      '#### @        .......#######...............            #####',
+      '#### @    K   .......#######...............            #####',
       '############################################################',
       '############################################################',
       '############################################################',

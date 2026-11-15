@@ -1,26 +1,25 @@
 import type { LevelDef } from '../../game/level';
 
-/** Level III — The Bell Hall (spec section 9). Screens listed top to bottom. */
+/** Level 13 — the Bell Hall, Act III's opener (hand-made in the MVP). Screens listed top to bottom. */
 export const L3: LevelDef = {
-  id: 3,
+  id: 13,
   theme: 'bells',
+  entry: [3, 40, 29],
+  exit: [0, 40, 1],
+  load: 7,
   legend: {
     B: { kind: 'object', object: 'bell' },
     D: { kind: 'object', object: 'gate', props: { key: 'bell_key' } },
     a: { kind: 'item', item: 'pickaxe' },
     k: { kind: 'item', item: 'bell_key' },
     i: { kind: 'item', item: 'idol' },
-    s: { kind: 'item', item: 'scepter' },
-    l: { kind: 'item', item: 'lantern' },
     r: { kind: 'item', item: 'ruby' },
     c: { kind: 'item', item: 'coin_pouch' },
-    n: { kind: 'object', object: 'note', props: { id: 'note3' } },
-    N: { kind: 'object', object: 'note', props: { id: 'note4' } },
   },
   screens: [
     [
       '##                                                        ##',
-      '##                                      l  N              ##',
+      '##                                                        ##',
       '##                                ##########################',
       '##                                                        ##',
       '##                                                        ##',
@@ -29,8 +28,8 @@ export const L3: LevelDef = {
       '##                    #######                             ##',
       '##        ...............................                 ##',
       '##        ...............................                 ##',
-      '##    n   ...............................                 ##',
-      '##  s     ...............................                 ##',
+      '##        ...............................                 ##',
+      '##        ...............................                 ##',
       '########  ..#######......................                 ##',
       '##        ...............................                 ##',
       '##        ...............................                 ##',

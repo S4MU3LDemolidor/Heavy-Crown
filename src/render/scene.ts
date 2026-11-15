@@ -76,10 +76,15 @@ export class ClimberAnimator {
   }
 }
 
+/** Level backdrops and baked screens kept in memory. */
+const KEEP_LEVELS = 3;
+const KEEP_BANDS = 12;
+
 /** Draws the world: sky, parallax, baked screens, climber. */
 export class Scene {
   private readonly world: World;
-  private readonly levelArt: LevelArt[];
+  /** Sky and parallax per level, painted when first needed; only the few most recent are kept (memory). */
+  private readonly levelArt = new Map<number, LevelArt>();
   private readonly bands = new Map<number, { canvas: HTMLCanvasElement; lights: BakedLight[]; tufts: Tuft[]; vines: Vine[] }>();
   private readonly ambient: Ambient;
   private readonly climber: ClimberSheet;
@@ -107,37 +112,63 @@ export class Scene {
 
   constructor(world: World) {
     this.world = world;
-    this.levelArt = world.levels.map((level, li) => {
-      const theme = THEMES[level.theme];
-      const span = levelSpan(world, li);
-      const layers = {} as LevelArt['layers'];
-      for (const name of LAYERS) {
-        const h = layerHeight(name, span);
-        layers[name] = { canvas: toCanvas(paintLayer(theme, name, h)), h };
-      }
-      return { theme, sky: toCanvas(paintSky(theme)), layers };
-    });
     this.ambient = new Ambient(world);
     this.climber = buildClimberSheet();
     this.sheetR = toCanvas(this.climber.sheet);
     this.sheetL = toCanvas(mirrorFrames(this.climber.sheet));
   }
 
-  /** The baked canvas of a band, painting it on first use. */
+  /** A level's sky and parallax, painted on first use; the least recently used beyond KEEP_LEVELS are dropped. */
+  art(li: number): LevelArt {
+    let a = this.levelArt.get(li);
+    if (a) {
+      this.levelArt.delete(li);
+      this.levelArt.set(li, a);
+      return a;
+    }
+    const theme = THEMES[this.world.levels[li].theme];
+    const span = levelSpan(this.world, li);
+    const layers = {} as LevelArt['layers'];
+    for (const name of LAYERS) {
+      const h = layerHeight(name, span);
+      layers[name] = { canvas: toCanvas(paintLayer(theme, name, h)), h };
+    }
+    a = { theme, sky: toCanvas(paintSky(theme)), layers };
+    this.levelArt.set(li, a);
+    for (const k of this.levelArt.keys()) {
+      if (this.levelArt.size <= KEEP_LEVELS) break;
+      if (k !== li && k !== this.shownLevel && k !== this.fadeFrom) this.levelArt.delete(k);
+    }
+    return a;
+  }
+
+  /** The baked canvas of a band, painting it on first use; the least recently used beyond KEEP_BANDS are dropped. */
   band(b: number): { canvas: HTMLCanvasElement; lights: BakedLight[]; tufts: Tuft[]; vines: Vine[] } {
     let baked = this.bands.get(b);
-    if (!baked) {
-      const theme = THEMES[this.world.levels[this.world.bandLevel[b]].theme];
-      const s = paintScreen(this.world, b, theme);
-      baked = { canvas: toCanvas(s.buf), lights: s.lights, tufts: s.tufts, vines: s.vines };
+    if (baked) {
+      this.bands.delete(b);
       this.bands.set(b, baked);
+      return baked;
+    }
+    const theme = THEMES[this.world.levels[this.world.bandLevel[b]].theme];
+    const s = paintScreen(this.world, b, theme);
+    baked = { canvas: toCanvas(s.buf), lights: s.lights, tufts: s.tufts, vines: s.vines };
+    this.bands.set(b, baked);
+    for (const k of this.bands.keys()) {
+      if (this.bands.size <= KEEP_BANDS) break;
+      if (Math.abs(k - b) > 1) this.bands.delete(k);
     }
     return baked;
   }
 
-  /** Paints the bands around `b` ahead of time so screen changes never stall. */
+  /** Paints the bands (and level art) around `b` ahead of time so screen changes never stall. */
   warm(b: number): void {
-    for (const k of [b - 1, b, b + 1]) if (k >= 0 && k < this.world.screenCount) this.band(k);
+    for (const k of [b - 1, b, b + 1]) {
+      if (k < 0 || k >= this.world.screenCount) continue;
+      this.band(k);
+      this.art(this.world.bandLevel[k]);
+    }
+    this.art(this.world.bandLevel[b]);
   }
 
   /** Feeds this step's events to the effects (call after each game step). */
@@ -186,7 +217,7 @@ export class Scene {
       }
       this.shownLevel = li;
     }
-    const art = this.levelArt[li];
+    const art = this.art(li);
     const t = this.anim.time;
     const backdrop = (a: LevelArt, lvl: number) => {
       ctx.drawImage(a.sky, 0, 0);
@@ -207,7 +238,7 @@ export class Scene {
     };
     // the backdrop of the level being left fades into the new one
     if (this.fadeK < 1 && this.fadeFrom >= 0) {
-      backdrop(this.levelArt[this.fadeFrom], this.fadeFrom);
+      backdrop(this.art(this.fadeFrom), this.fadeFrom);
       ctx.save();
       ctx.globalAlpha = this.fadeK;
       backdrop(art, li);

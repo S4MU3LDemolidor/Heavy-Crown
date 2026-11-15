@@ -1,16 +1,18 @@
 import type { LevelDef } from '../../game/level';
 
-/** Level II — The Drowned Cistern (spec section 9). Screens listed top to bottom. */
+/** Level 7 — the Drowned Cistern, Act II's opener (hand-made in the MVP). Screens listed top to bottom. */
 export const L2: LevelDef = {
-  id: 2,
+  id: 7,
   theme: 'cistern',
+  entry: [3, 44, 30],
+  exit: [0, 32, 0],
+  load: 7,
   legend: {
     s: { kind: 'item', item: 'stone' },
     p: { kind: 'object', object: 'plate', props: { link: 'cistern', need: 3 } },
     P: { kind: 'object', object: 'gate', props: { link: 'cistern' } },
     b: { kind: 'item', item: 'spring_boots' },
     f: { kind: 'item', item: 'feather_charm' },
-    o: { kind: 'item', item: 'orb' },
     c: { kind: 'item', item: 'coin_pouch' },
     x: { kind: 'item', item: 'chalice' },
     n: { kind: 'object', object: 'note', props: { id: 'note2' } },
@@ -22,7 +24,7 @@ export const L2: LevelDef = {
       '##                                                        ##',
       '##                                                        ##',
       '##                                                        ##',
-      '##  c   o                                                 ##',
+      '##  c                                                     ##',
       '####################====================#########         ##',
       '##                                                        ##',
       '##                                                        ##',

@@ -5,7 +5,7 @@ import { buildWorld } from '../src/game/level';
 import { findFootholds } from '../src/game/reach';
 import { TILE, TUNING } from '../src/game/tuning';
 
-/** Every note can be read, and every item picked up, from some place the climber can stand. */
+/** Every note can be read, every item picked up, every NPC and lift used and every scare sprung from some place the climber can stand. */
 describe('level objects are within reach', () => {
   const world = buildWorld(LEVELS);
   const game = new Game(world);
@@ -37,6 +37,22 @@ describe('level objects are within reach', () => {
       const h = TUNING.bodyH;
       return bx - 3 < it.body.x + ITEM_BOX && it.body.x < bx + w + 3 && by < it.body.y + ITEM_BOX && it.body.y < by + h + 1;
     });
+    expect(ok).toBe(true);
+  });
+
+  const standNear = (x: number, y: number, reach: number) =>
+    footholds.some((f) => Math.abs(f.ty * TILE - y) <= TILE * 2 && x >= f.x0 + TUNING.bodyW / 2 - reach && x <= f.x1 + TUNING.bodyW / 2 + reach);
+
+  it.each(game.npcs.map((n) => [n.key, n] as const))('NPC %s stands where the climber can reach', (_key, n) => {
+    expect(standNear(n.x, n.y, 16)).toBe(true);
+  });
+
+  it.each(game.lifts.map((l) => [l.key, l] as const))('lift station %s can be used', (_key, l) => {
+    expect(standNear(l.x, l.y, 16)).toBe(true);
+  });
+
+  it.each(game.scares.map((s) => [s.id, s] as const))('scare %s can be sprung', (_id, s) => {
+    const ok = reachable((bx, by) => bx < s.x + s.w && s.x < bx + TUNING.bodyW && by < s.y + s.h && s.y < by + TUNING.bodyH);
     expect(ok).toBe(true);
   });
 });

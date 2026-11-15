@@ -1,14 +1,17 @@
 import type { LevelDef } from '../../game/level';
 
-/** Level IV — The Lightless Floors (spec section 9). Screens listed top to bottom. */
+/** Level 19 — the Lightless Floors, Act IV's opener (hand-made in the MVP). Screens listed top to bottom. */
 export const L4: LevelDef = {
-  id: 4,
+  id: 19,
   theme: 'dark',
+  entry: [2, 28, 30],
+  exit: [0, 46, 0],
+  load: 8,
   legend: {
     m: { kind: 'item', item: 'map' },
     k: { kind: 'item', item: 'bone_key' },
     O: { kind: 'object', object: 'gate', props: { key: 'bone_key' } },
-    s: { kind: 'item', item: 'seal' },
+    s: { kind: 'item', item: 'chalice' },
     r: { kind: 'item', item: 'ruby' },
     c: { kind: 'item', item: 'coin_pouch' },
   },

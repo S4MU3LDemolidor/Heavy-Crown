@@ -1,7 +1,9 @@
 import { rasterText, textWidth } from '../art/font';
 import { NOTES } from '../content/story';
 import type { Game } from '../game/game';
-import { SCREEN_H, SCREEN_W, VIEW_H, VIEW_W } from '../game/tuning';
+import { THEMES } from '../content/themes';
+import { Tile } from '../game/tiles';
+import { SCREEN_COLS, SCREEN_H, SCREEN_ROWS, VIEW_H, VIEW_W } from '../game/tuning';
 import { dimScreen, drawPanel, drawParagraph, drawText, drawTextCentered, UI } from './draw';
 
 /** Text drawn with each font pixel as an s×s block. */
@@ -128,49 +130,92 @@ const bar = (v: number) => {
 };
 
 /** Maren's map: the 18 screens as thumbnails in two columns, with dropped items and the climber. */
-export function drawMap(ctx: CanvasRenderingContext2D, game: Game, thumb: (band: number) => HTMLCanvasElement | null): void {
-  dimScreen(ctx, 0.8);
-  const n = game.world.screenCount;
-  const tw = 40;
-  const th = Math.round((tw * SCREEN_H) / SCREEN_W);
-  const perCol = Math.ceil(n / 2);
-  const x0 = Math.round(VIEW_W / 2 - tw - 14);
-  const y0 = Math.round(VIEW_H / 2 - (perCol * (th + 2)) / 2) + 6;
-  drawTextCentered(ctx, "Maren's map", VIEW_W / 2, y0 - 16, UI.gold);
-  for (let k = 0; k < n; k++) {
-    // k counts screens from the bottom of the tower
-    const band = n - 1 - k;
-    const col = k < perCol ? 0 : 1;
-    const row = perCol - 1 - (k % perCol);
-    const x = x0 + col * (tw + 28);
-    const y = y0 + row * (th + 2);
-    ctx.fillStyle = '#120d18';
-    ctx.fillRect(x - 1, y - 1, tw + 2, th + 2);
-    const c = game.discovered.has(band) ? thumb(band) : null;
-    if (c) {
-      ctx.imageSmoothingEnabled = true;
-      ctx.drawImage(c, x, y, tw, th);
-      ctx.imageSmoothingEnabled = false;
-    } else {
-      ctx.fillStyle = '#221a2e';
-      ctx.fillRect(x, y, tw, th);
+/** A screen as one pixel per tile, coloured from its theme (for the map). */
+export function mapThumb(game: Game, band: number): HTMLCanvasElement {
+  const w = game.world;
+  const theme = THEMES[w.levels[w.bandLevel[band]].theme];
+  const c = document.createElement('canvas');
+  c.width = SCREEN_COLS;
+  c.height = SCREEN_ROWS;
+  const g = c.getContext('2d')!;
+  const colors: Record<number, string> = {
+    [Tile.Solid]: theme.stone[4],
+    [Tile.Water]: theme.accent2[2],
+    [Tile.Ice]: theme.accent2[theme.accent2.length - 1],
+    [Tile.Ladder]: theme.stone[4],
+    [Tile.Ivy]: theme.accent[2],
+    [Tile.Rough]: theme.stone[4],
+  };
+  for (let y = 0; y < SCREEN_ROWS; y++) {
+    for (let x = 0; x < SCREEN_COLS; x++) {
+      const ty = band * SCREEN_ROWS + y;
+      const t = w.grid.get(x, ty);
+      g.fillStyle = colors[t] ?? (w.open[ty * SCREEN_COLS + x] ? theme.sky[3] : theme.back[0]);
+      g.fillRect(x, y, 1, 1);
     }
-    const toMap = (wx: number, wy: number): [number, number] => [x + Math.round((wx / SCREEN_W) * tw), y + Math.round(((wy - band * SCREEN_H) / SCREEN_H) * th)];
-    for (const it of game.items) {
-      if (Math.floor(it.body.y / SCREEN_H) !== band || !game.discovered.has(band)) continue;
-      const [mx, my] = toMap(it.body.x + 4, it.body.y + 4);
-      ctx.fillStyle = '#f6d27a';
-      ctx.fillRect(mx, my, 1, 1);
-    }
-    const p = game.player;
-    if (Math.floor(p.centerY / SCREEN_H) === band) {
-      const [mx, my] = toMap(p.centerX, p.centerY);
-      ctx.fillStyle = '#ff5050';
-      ctx.fillRect(mx - 1, my - 1, 3, 3);
-    }
-    drawText(ctx, String(k + 1), col === 0 ? x - 12 : x + tw + 4, y + th / 2 - 3, UI.dim, null);
   }
-  drawTextCentered(ctx, 'gold: things you left behind   red: you', VIEW_W / 2, VIEW_H - 14, UI.dim);
+  return c;
+}
+
+/** Maren's map, one act per page: six levels side by side, three screens each, with what you left behind. */
+export function drawMap(ctx: CanvasRenderingContext2D, game: Game, act: number, thumb: (band: number) => HTMLCanvasElement | null, hint: string): void {
+  dimScreen(ctx, 0.85);
+  const w = game.world;
+  const ids = [1, 2, 3, 4, 5, 6].map((k) => (act - 1) * 6 + k);
+  const cols = ids.map((id) => w.levels.findIndex((l) => l.id === id)).filter((li) => li >= 0);
+  const theme = cols.length ? THEMES[w.levels[cols[0]].theme] : null;
+  drawTextCentered(ctx, `Maren's map  -  ${theme ? `${theme.numeral}. ${theme.title}` : ''}`, VIEW_W / 2, 8, UI.gold);
+  const gapX = 8;
+  const x0 = Math.round(VIEW_W / 2 - (cols.length * SCREEN_COLS + (cols.length - 1) * gapX) / 2);
+  const tall = Math.max(...cols.map((li) => w.bandLevel.filter((b) => b === li).length), 3);
+  const y0 = Math.round(VIEW_H / 2 - (tall * SCREEN_ROWS) / 2) + 2;
+  const p = game.player;
+  const playerBand = Math.floor(p.centerY / SCREEN_H);
+  cols.forEach((li, i) => {
+    const x = x0 + i * (SCREEN_COLS + gapX);
+    const bands = w.bandLevel.map((b, k) => [b, k]).filter(([b]) => b === li).map(([, k]) => k);
+    // levels are drawn bottom-aligned so a four-screen level rises above the rest
+    const yTop = y0 + (tall - bands.length) * SCREEN_ROWS;
+    bands.forEach((band, k) => {
+      const y = yTop + k * SCREEN_ROWS;
+      ctx.fillStyle = '#0c0910';
+      ctx.fillRect(x - 1, y - 1, SCREEN_COLS + 2, SCREEN_ROWS + 2);
+      const c = game.discovered.has(band) ? thumb(band) : null;
+      if (c) ctx.drawImage(c, x, y);
+      else {
+        ctx.fillStyle = '#1a1422';
+        ctx.fillRect(x, y, SCREEN_COLS, SCREEN_ROWS);
+      }
+      if (!c) return;
+      const toMap = (wx: number, wy: number): [number, number] => [x + Math.floor(wx / 8), y + Math.floor((wy - band * SCREEN_H) / 8)];
+      for (const l of game.lifts) {
+        if (Math.floor((l.y - 1) / SCREEN_H) !== band) continue;
+        const [mx, my] = toMap(l.x, l.y - 4);
+        ctx.fillStyle = '#5ab0ff';
+        ctx.fillRect(mx - 1, my - 1, 2, 2);
+      }
+      for (const n of game.npcs) {
+        if (n.gone || Math.floor((n.y - 1) / SCREEN_H) !== band || n.id === 'hollow') continue;
+        const [mx, my] = toMap(n.x, n.y - 8);
+        ctx.fillStyle = '#e8e0f0';
+        ctx.fillRect(mx, my, 1, 2);
+      }
+      for (const it of game.items) {
+        if (Math.floor(it.body.y / SCREEN_H) !== band) continue;
+        const [mx, my] = toMap(it.body.x + 4, it.body.y + 4);
+        ctx.fillStyle = '#f6d27a';
+        ctx.fillRect(mx, my, 1, 1);
+      }
+      if (band === playerBand) {
+        const [mx, my] = toMap(p.centerX, p.centerY);
+        ctx.fillStyle = '#ff5050';
+        ctx.fillRect(mx - 1, my - 1, 3, 3);
+      }
+    });
+    drawTextCentered(ctx, String(w.levels[li].id), x + SCREEN_COLS / 2, y0 + tall * SCREEN_ROWS + 4, UI.dim);
+  });
+  drawTextCentered(ctx, 'gold: left behind   blue: lifts   white: people   red: you', VIEW_W / 2, VIEW_H - 26, UI.dim);
+  drawTextCentered(ctx, hint, VIEW_W / 2, VIEW_H - 14, UI.dim);
 }
 
 /** The journal: every note read so far, one per page. */

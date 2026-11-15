@@ -2,6 +2,8 @@
 
 A browser tower climber about weight. Climb an ancient tower one charged jump at a time; everything you carry makes your jumps shorter, and anything you put down stays where you left it. Bring the Orb, the Scepter and the Seal to the summit altar to lift the crown and bring back the dawn.
 
+Thirty levels in five acts (the Overgrown Base, the Drowned Cistern, the Bell Hall, the Lightless Floors, the Frozen Spire), with Maren's twelve notes, a cast of strangers who trade in weight, bucket lifts, a few earned scares, and two new ways to climb that weigh something too: the Climbing Claws and the Grappling Hook.
+
 ## Play
 
 ```bash
@@ -30,8 +32,9 @@ Open http://localhost:5173.
 | `npm run dev` | dev server |
 | `npm run build` | type-check and build the static game into `dist/` |
 | `npm test` | unit tests (physics, weight, items, objects, levels) |
-| `npm run check:levels` | climbability checker: proves every route and weight rule in the level design |
-| `npm run art:preview` | writes PNG previews of the art to `previews/` |
+| `npm run check:levels [ids]` | climbability checker: every level climbs into the next at its load, set pieces cannot be skipped, the summit refuses two relics |
+| `npm run levels:gen [ids]` | regenerates the generated levels from `tools/levelgen/specs.ts` (validated with the checker) |
+| `npm run art:preview` | writes PNG previews of the art to `previews/`; `art:preview level 4 10` renders whole levels with their objects marked |
 | `npx tsx tools/reach.ts` | prints the tower with reachable ledges (flags are listed at the top of the file) |
 
 URL flags: `?new` clears the save, `?play` skips the title, `?debug` shows debug text (`2` toggles hitboxes), `?test` loads the grey jump-tuning tower, `?moves` loads a playground for the Climbing Claws and the Grappling Hook.
@@ -46,8 +49,9 @@ Each level has its own ambient track in `public/audio/<theme>.mp3` (`title`, `ov
 - `src/art/` — all art, painted in code into pixel buffers: climber, items, terrain, sky and parallax, font.
 - `src/render/` — scene, lighting, fog, particles, foliage, pixelfx effects.
 - `src/ui/` — HUD, inventory, notes, menus, map, journal, ending.
-- `src/content/` — themes, items, story, the five levels.
-- `tools/leveldraft/` — the Python drafts the level files are generated from.
+- `src/content/` — themes, items, story and NPC scripts, the levels. Levels 1, 7, 13, 19 and 25 are hand-made (`src/content/levels/l*.ts`, from the MVP); the other 25 are generated into `src/content/levels/gen/`.
+- `tools/levelgen/` — the level generator (route-first: ledge chains, ivy buttresses, rough shafts, climbable pillars, grapple rings, storey floors, bells, ice) and the per-level specs with the story placements.
+- `tools/leveldraft/` — the Python drafts of the MVP's five levels (historical; the TypeScript files are now the source).
 - `docs/superpowers/` — design spec and build plans.
 
 Pixel effects for the aurora, light beams and holy moments come from [pixelfx](https://github.com/patch-gg/pixelfx) (MIT), vendored in `src/vendor/pixelfx`.

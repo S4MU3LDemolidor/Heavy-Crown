@@ -13,7 +13,7 @@ import { loadTier } from './game/weight';
 import { drawDebugText } from './render/debugDraw';
 import { Scene } from './render/scene';
 import { drawInventory, drawNote, drawPackBar, drawPrompt, drawToast, drawWeightMeter } from './ui/hud';
-import { CREDITS, drawJournal, drawLogo, drawMap, drawMenu, drawOptions, drawStats, drawStoryLines, drawTitleCard, formatTime, type EndStats, type Options } from './ui/screens';
+import { CREDITS, drawJournal, drawLogo, drawMap, drawMenu, mapThumb, drawOptions, drawStats, drawStoryLines, drawTitleCard, formatTime, type EndStats, type Options } from './ui/screens';
 import { dimScreen, drawTextCentered, UI } from './ui/draw';
 import { drawDialogue, drawPicker } from './ui/dialogue';
 import { DialogueRunner } from './game/story';
@@ -38,6 +38,13 @@ game.scaresEnabled = loadOptions().scares;
 const saved = GREYBOX || MOVES || !params.has('play') ? null : readSave();
 if (saved) game.load(saved);
 const camera = new Camera(world.screenCount);
+/** Map thumbnails, one pixel per tile, made once per screen. */
+const thumbs = new Map<number, HTMLCanvasElement>();
+const mapThumbFor = (band: number): HTMLCanvasElement => {
+  let c = thumbs.get(band);
+  if (!c) thumbs.set(band, (c = mapThumb(game, band)));
+  return c;
+};
 const scene = new Scene(world);
 camera.snapTo(game.player.centerY);
 scene.warm(camera.band);
@@ -51,7 +58,7 @@ type Mode =
   | { kind: 'note'; id: string }
   | { kind: 'pause'; sel: number }
   | { kind: 'options'; sel: number; back: 'pause' | 'title' }
-  | { kind: 'map' }
+  | { kind: 'map'; act: number }
   | { kind: 'journal'; page: number }
   | { kind: 'ending'; t: number; stats: EndStats; baseY: number }
   | { kind: 'credits'; t: number }
@@ -405,7 +412,7 @@ function update(): void {
         const pick = items[mode.sel];
         if (pick === 'Resume') mode = { kind: 'play' };
         else if (pick === 'Journal') mode = { kind: 'journal', page: Math.max(0, game.notesRead.size - 1) };
-        else if (pick === 'Map') mode = { kind: 'map' };
+        else if (pick === 'Map') mode = { kind: 'map', act: Math.ceil(world.levels[world.bandLevel[camera.band]].id / 6) };
         else if (pick === 'Options') mode = { kind: 'options', sel: 0, back: 'pause' };
         else {
           save();
@@ -438,6 +445,8 @@ function update(): void {
       break;
     }
     case 'map':
+      if (input.pressed('left')) mode.act = Math.max(1, mode.act - 1);
+      if (input.pressed('right')) mode.act = Math.min(5, mode.act + 1);
       if (ok || back) mode = { kind: 'pause', sel: 0 };
       break;
     case 'journal': {
@@ -549,7 +558,7 @@ function render(): void {
       drawOptions(ctx, options, mode.sel, !!document.fullscreenElement, uiT);
       break;
     case 'map':
-      drawMap(ctx, game, (b) => (game.discovered.has(b) ? scene.band(b).canvas : null));
+      drawMap(ctx, game, mode.act, mapThumbFor, `${input.label('left')}/${input.label('right')} acts   ${input.label('pause')} close`);
       break;
     case 'journal':
       drawJournal(ctx, [...game.notesRead], mode.page, `${input.label('left')}/${input.label('right')} turn   ${input.label('pause')} close`);
@@ -647,7 +656,7 @@ if (import.meta.env.DEV) {
     /** Puts the three relics on the altar and lifts the crown. */
     finish() {
       mode = { kind: 'play' };
-      const li = world.levels.findIndex((l) => l.id === 5);
+      const li = world.levels.findIndex((l) => l.id === world.levels[world.levels.length - 1].id);
       const p = game.player;
       p.body.x = 29 * 8;
       p.body.y = (world.bandLevel.indexOf(li) * 34 + 7) * 8 - 18;
@@ -662,6 +671,10 @@ if (import.meta.env.DEV) {
       }
       render();
       return mode.kind;
+    },
+    openMap(act: number) {
+      mode = { kind: 'map', act };
+      render();
     },
     openInventory() {
       mode = { kind: 'inventory', sel: 0, message: null, messageT: 0 };

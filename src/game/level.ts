@@ -17,6 +17,12 @@ export interface LevelDef {
   legend: Record<string, LegendEntry>;
   /** Screens (index within this level, 0 = top) with gusting wind and its direction. */
   wind?: { screen: number; dir: 1 | -1 }[];
+  /** Where the climb comes in and goes out: [screen (0 = top), tile x, tile y of the cell the climber stands in]. */
+  entry?: [number, number, number];
+  exit?: [number, number, number];
+  /** The load (stones) the route must support, and the items it needs. */
+  load?: number;
+  needs?: ('claws' | 'hook' | 'crampons')[];
 }
 
 export interface Spawn {

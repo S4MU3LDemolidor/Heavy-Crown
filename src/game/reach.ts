@@ -49,6 +49,8 @@ export interface ReachOptions {
   chargeSteps?: number;
   /** Collision world (defaults to the grid). May provide ladders, water, ice, climbable walls and rings. */
   world?: PlayerWorld;
+  /** Multiplier on wind push (the Fur Cloak: 0.3). */
+  windResist?: number;
 }
 
 export interface ReachResult {
@@ -97,6 +99,7 @@ export function explore(grid: TileGrid, start: { x: number; y: number }, opts: R
     p.loadout.crampons = opts.crampons;
     p.loadout.claws = opts.claws;
     p.loadout.hook = opts.hook;
+    if (opts.windResist !== undefined) p.loadout.windResist = opts.windResist;
     return p;
   };
   const atRing = (r: { x: number; y: number }): Player => {
@@ -110,6 +113,8 @@ export function explore(grid: TileGrid, start: { x: number; y: number }, opts: R
    * Runs a player with `input` held until it comes to rest and returns the nodes it can end on.
    * A cling branches into climbing up, climbing down, a wall jump and letting go (depth-limited).
    */
+  // a cling is fully described by where it is (velocity is zero), so its outcomes can be shared
+  const clingMemo = new Map<string, number[]>();
   const settle = (p: Player, input: PlayerInput, depth: number): number[] => {
     for (let i = 0; i < SETTLE_LIMIT; i++) {
       const s = p.state as string;
@@ -127,7 +132,11 @@ export function explore(grid: TileGrid, start: { x: number; y: number }, opts: R
       return id >= 0 ? [id] : [];
     }
     if (s === 'cling' && depth < 4) {
+      const key = `${p.body.x},${p.body.y},${p.wallDir},${depth}`;
+      const seen = clingMemo.get(key);
+      if (seen) return seen;
       const out: number[] = [];
+      clingMemo.set(key, out);
       const toward = { left: p.wallDir < 0, right: p.wallDir > 0 };
       // climb up (onto the top, or as far as it goes, then jump off)
       const up = p.clone();

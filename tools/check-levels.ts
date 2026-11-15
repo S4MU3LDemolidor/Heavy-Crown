@@ -1,70 +1,71 @@
 /**
- * The climbability checker (spec section 15): every rule the level design depends on.
- * Exits with code 1 if any expectation fails.  npm run check:levels
+ * The climbability checker (spec section 15, full-game spec section 9). Every level is checked from its entry
+ * to the next level's entry at its stated load with its stated moves; generated levels also check that their
+ * set pieces cannot be skipped; and the hand-written rules below still hold. Exits with code 1 on failure.
+ *   npm run check:levels [ids...]
  */
 import { LEVELS } from '../src/content/levels';
-import { Game } from '../src/game/game';
-import { buildWorld, type World } from '../src/game/level';
-import { explore } from '../src/game/reach';
-import { SCREEN_ROWS, TILE, TUNING } from '../src/game/tuning';
+import type { LevelDef } from '../src/game/level';
+import { reaches, reachOpts, type Move } from './levelgen/gen';
+import { SPECS } from './levelgen/specs';
 
-type Cell = [level: number, screen: number, tx: number, ty: number];
+type Cell = [screen: number, tx: number, ty: number];
+type Open = 'all' | 'keys' | 'none';
 
-interface Check {
-  label: string;
-  from: Cell | 'start';
-  to: Cell;
-  stones: number;
-  crampons?: boolean;
-  /** 'all' opens every gate and breaks cracked walls; 'keys' opens key gates and walls but not plate gates. */
-  open?: 'all' | 'keys' | 'none';
-  reachable: boolean;
-}
-
-const SUMMIT: Cell = [5, 0, 30, 6];
-
-const CHECKS: Check[] = [
-  { label: 'empty-handed, the whole tower can be climbed to the summit', from: 'start', to: SUMMIT, stones: 0, crampons: true, open: 'all', reachable: true },
-  { label: 'with 4 stones the whole tower can be climbed', from: 'start', to: SUMMIT, stones: 4, crampons: true, open: 'all', reachable: true },
-  { label: 'level I: the iron gate cannot be bypassed', from: 'start', to: [1, 1, 45, 2], stones: 0, open: 'none', reachable: false },
-  { label: 'level II: the plate gate guards the Spring Boots', from: [2, 3, 44, 30], to: [2, 2, 5, 12], stones: 0, open: 'keys', reachable: false },
-  { label: 'level II can be climbed carrying 7 stones', from: [2, 3, 44, 30], to: [2, 0, 32, 0], stones: 7, open: 'all', reachable: true },
-  { label: 'level III can be climbed without the Bell Key or the Pickaxe', from: [3, 3, 40, 29], to: [3, 0, 40, 1], stones: 7, open: 'none', reachable: true },
-  { label: 'level IV: the Seal lies behind the ossuary door', from: [4, 2, 28, 30], to: [4, 0, 52, 25], stones: 2, open: 'none', reachable: false },
-  { label: 'level IV can be climbed carrying 7 stones', from: [4, 2, 28, 30], to: [4, 0, 46, 0], stones: 7, open: 'keys', reachable: true },
-  { label: 'level V: one relic, Crampons and Fur Cloak (7 st) reach the summit', from: [5, 3, 38, 29], to: SUMMIT, stones: 7, crampons: true, reachable: true },
-  { label: 'level V: two relics, Crampons and Fur Cloak (11 st) cannot', from: [5, 3, 38, 29], to: SUMMIT, stones: 11, crampons: true, reachable: false },
-];
-
-function cellToPos(w: World, [L, s, tx, ty]: Cell): { x: number; y: number; feetRow: number } {
-  const li = w.levels.findIndex((l) => l.id === L);
-  const band = w.bandLevel.indexOf(li) + s;
-  const wy = band * SCREEN_ROWS + ty;
-  return { x: tx * TILE - 1, y: (wy + 1) * TILE - TUNING.bodyH, feetRow: wy + 1 };
-}
-
+const byId = (id: number) => LEVELS.find((l) => l.id === id)!;
+const only = new Set(process.argv.slice(2).map(Number));
 let failed = 0;
-for (const c of CHECKS) {
-  const world = buildWorld(LEVELS);
-  const game = new Game(world);
-  const open = c.open ?? 'none';
-  if (open !== 'none') {
-    for (const g of game.gates) if (open === 'all' || !g.link) g.open = true;
-    for (const w of game.cracked) w.broken = true;
-  }
-  const start = c.from === 'start' ? world.start : cellToPos(world, c.from);
-  const r = explore(world.grid, start, { stones: c.stones, crampons: c.crampons, world: game });
-  const target = cellToPos(world, c.to);
-  const tx = c.to[2] * TILE;
-  const hit = r.footholds.find((f) => f.ty === target.feetRow && tx >= f.x0 - TUNING.bodyW && tx <= f.x1 + TUNING.bodyW);
-  if (!hit) {
-    console.log(`✗ ${c.label}\n    (no foothold at the target cell ${c.to.join(':')})`);
-    failed++;
-    continue;
-  }
-  const ok = r.reached.has(hit.id) === c.reachable;
-  console.log(`${ok ? '✓' : '✗'} ${c.label}`);
-  if (!ok) failed++;
+let count = 0;
+
+/** Checks reachability within the levels around `id` (one below, one above). */
+function check(label: string, id: number, from: Cell, to: { id: number; cell: Cell }, opts: { stones?: number; moves?: Move[]; cloak?: boolean; open?: Open }, expect: boolean): void {
+  count++;
+  const levels: LevelDef[] = [byId(id - 1), byId(id), byId(id + 1)].filter(Boolean);
+  const li = levels.indexOf(byId(id));
+  const ti = levels.indexOf(byId(to.id));
+  const level = byId(id);
+  const t0 = performance.now();
+  const [ok] = reaches(
+    levels,
+    li,
+    from,
+    [{ li: ti, cell: to.cell }],
+    (game) => {
+      const open = opts.open ?? 'all';
+      for (const g of game.gates) g.open = open === 'all' || (open === 'keys' && !g.link && !g.flag);
+      for (const w of game.cracked) w.broken = open !== 'none';
+      return { ...reachOpts(level, game, opts.moves, opts.cloak), ...(opts.stones !== undefined ? { stones: opts.stones } : {}) };
+    },
+  );
+  const pass = ok === expect;
+  console.log(`${pass ? '✓' : '✗'} ${label} (${Math.round(performance.now() - t0)} ms)`);
+  if (!pass) failed++;
 }
-console.log(failed ? `\n${failed} check(s) failed` : `\nall ${CHECKS.length} checks passed`);
+
+// every level climbs into the next at its load
+for (const l of LEVELS) {
+  if (only.size && !only.has(l.id)) continue;
+  const next = byId(l.id + 1);
+  const cloak = l.theme === 'frozen' && l.id > 25;
+  const to = next ? { id: next.id, cell: next.entry! } : { id: l.id, cell: l.exit! };
+  const what = [`${l.load} st`, ...(l.needs ?? []), ...(cloak ? ['fur cloak'] : [])].join(', ');
+  check(`level ${l.id}: climbs ${next ? `into level ${next.id}` : 'to the summit'} carrying ${what}`, l.id, l.entry!, to, { cloak }, true);
+  const spec = SPECS.find((s) => s.id === l.id);
+  for (const m of spec?.requires ?? []) {
+    check(`level ${l.id}: cannot be climbed without the ${m}`, l.id, l.entry!, to, { moves: (l.needs ?? []).filter((x) => x !== m), cloak }, false);
+  }
+}
+
+// the hand-made rules
+const RULES: { id: number; run: () => void }[] = [
+  { id: 1, run: () => check('level 1: the iron gate cannot be bypassed', 1, byId(1).entry!, { id: 1, cell: [1, 45, 2] }, { stones: 0, open: 'none' }, false) },
+  { id: 7, run: () => check('level 7: the plate gate guards the Spring Boots', 7, [3, 44, 30], { id: 7, cell: [2, 5, 12] }, { stones: 0, open: 'keys' }, false) },
+  { id: 13, run: () => check('level 13 can be climbed without the Bell Key or the Pickaxe', 13, byId(13).entry!, { id: 13, cell: byId(13).exit! }, { stones: 7, open: 'none' }, true) },
+  { id: 19, run: () => check('level 19: the ossuary door guards its chalice', 19, byId(19).entry!, { id: 19, cell: [0, 52, 25] }, { stones: 2, open: 'none' }, false) },
+  { id: 30, run: () => check('level 30: one relic, Crampons and Fur Cloak (7 st) reach the summit', 30, byId(30).entry!, { id: 30, cell: byId(30).exit! }, { stones: 7, cloak: true }, true) },
+  { id: 30, run: () => check('level 30: two relics, Crampons and Fur Cloak (11 st) cannot', 30, byId(30).entry!, { id: 30, cell: byId(30).exit! }, { stones: 11, cloak: true }, false) },
+];
+for (const r of RULES) if (!only.size || only.has(r.id)) r.run();
+
+console.log(failed ? `\n${failed} of ${count} checks failed` : `\nall ${count} checks passed`);
 process.exit(failed ? 1 : 0);

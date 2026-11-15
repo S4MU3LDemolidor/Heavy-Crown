@@ -1,9 +1,34 @@
 import type { LevelDef } from '../../game/level';
 import { L1 } from './l1-overgrown-base';
+import { L02 } from './gen/l02';
+import { L03 } from './gen/l03';
+import { L04 } from './gen/l04';
+import { L05 } from './gen/l05';
+import { L06 } from './gen/l06';
 import { L2 } from './l2-drowned-cistern';
+import { L08 } from './gen/l08';
+import { L09 } from './gen/l09';
+import { L10 } from './gen/l10';
+import { L11 } from './gen/l11';
+import { L12 } from './gen/l12';
 import { L3 } from './l3-bell-hall';
+import { L14 } from './gen/l14';
+import { L15 } from './gen/l15';
+import { L16 } from './gen/l16';
+import { L17 } from './gen/l17';
+import { L18 } from './gen/l18';
 import { L4 } from './l4-lightless-floors';
+import { L20 } from './gen/l20';
+import { L21 } from './gen/l21';
+import { L22 } from './gen/l22';
+import { L23 } from './gen/l23';
+import { L24 } from './gen/l24';
 import { L5 } from './l5-frozen-spire';
+import { L26 } from './gen/l26';
+import { L27 } from './gen/l27';
+import { L28 } from './gen/l28';
+import { L29 } from './gen/l29';
+import { L30 } from './gen/l30';
 
 /** The tower's levels, bottom to top. */
-export const LEVELS: LevelDef[] = [L1, L2, L3, L4, L5];
+export const LEVELS: LevelDef[] = [L1, L02, L03, L04, L05, L06, L2, L08, L09, L10, L11, L12, L3, L14, L15, L16, L17, L18, L4, L20, L21, L22, L23, L24, L5, L26, L27, L28, L29, L30];
