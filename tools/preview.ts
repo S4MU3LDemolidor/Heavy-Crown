@@ -57,3 +57,21 @@ if (which === 'all' || which === 'screens') {
     console.log(`previews/screen-${n}.png`);
   }
 }
+
+if (which === 'all' || which === 'items') {
+  const { itemSprites, ITEM_SIZE, gateTile, ROPE_HOOK, ladderTile, NOTE } = await import('../src/art/items');
+  const sprites = itemSprites();
+  const ids = Object.keys(sprites) as (keyof typeof sprites)[];
+  const sheet = new PixelBuffer(ids.length * (ITEM_SIZE + 2) + 60, ITEM_SIZE + 26);
+  ids.forEach((id, i) => sheet.blit(sprites[id], 1 + i * (ITEM_SIZE + 2), 1));
+  const ox = ids.length * (ITEM_SIZE + 2);
+  sheet.blit(gateTile('top'), ox, 0);
+  sheet.blit(gateTile('mid'), ox, 8);
+  sheet.blit(gateTile('bottom'), ox, 16);
+  sheet.blit(ROPE_HOOK, ox + 10, 0);
+  sheet.blit(ladderTile(true), ox + 10, 8);
+  sheet.blit(ladderTile(true), ox + 10, 16);
+  sheet.blit(NOTE, ox + 20, 2);
+  savePng(sheet, 'previews/items.png', 6, '#4a5260');
+  console.log('previews/items.png');
+}

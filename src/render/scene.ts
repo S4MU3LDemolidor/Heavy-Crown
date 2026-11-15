@@ -5,11 +5,14 @@ import { paintScreen, type BakedLight } from '../art/terrain';
 import { THEMES, type Theme } from '../content/themes';
 import type { Camera } from '../game/camera';
 import type { World } from '../game/level';
+import type { Game } from '../game/game';
 import type { Player } from '../game/player';
 import { SCREEN_H, VIEW_H, VIEW_W } from '../game/tuning';
 import { loadTier } from '../game/weight';
 import { toCanvas } from './canvas';
 import { layerY, levelSpan } from './parallaxMath';
+import { ObjectRenderer } from './objects';
+import { PackGear } from './packGear';
 import { Scarf } from './scarf';
 
 const LAYERS: LayerName[] = ['far', 'mid', 'near'];
@@ -73,6 +76,8 @@ export class Scene {
   private readonly sheetL: HTMLCanvasElement;
   readonly anim = new ClimberAnimator();
   private scarf: Scarf | null = null;
+  readonly objects = new ObjectRenderer();
+  private readonly gear = new PackGear();
 
   constructor(world: World) {
     this.world = world;
@@ -132,7 +137,8 @@ export class Scene {
     return y;
   }
 
-  draw(ctx: CanvasRenderingContext2D, camera: Camera, player: Player): void {
+  draw(ctx: CanvasRenderingContext2D, camera: Camera, game: Game): void {
+    const player = game.player;
     const camY = Math.round(camera.y);
     const topBand = Math.max(0, Math.floor(camY / SCREEN_H));
     const li = this.world.bandLevel[camera.band];
@@ -148,10 +154,13 @@ export class Scene {
       if (y >= VIEW_H || y + SCREEN_H <= 0) continue;
       ctx.drawImage(this.band(b).canvas, 0, y);
     }
-    this.drawClimber(ctx, player, camY);
+    const t = this.anim.time;
+    this.objects.drawBack(ctx, game, camY, t);
+    this.objects.drawItems(ctx, game, camY, t);
+    this.drawClimber(ctx, player, camY, game.carried.map((c) => c.id));
   }
 
-  private drawClimber(ctx: CanvasRenderingContext2D, p: Player, camY: number): void {
+  private drawClimber(ctx: CanvasRenderingContext2D, p: Player, camY: number, carried: import('../content/items').ItemId[]): void {
     const info = this.frameInfo(p);
     let x = this.frameX(p);
     const y = this.frameY(p) - camY;
@@ -184,6 +193,7 @@ export class Scene {
     }
     const sheet = p.facing > 0 ? this.sheetR : this.sheetL;
     ctx.drawImage(sheet, info.sx, info.sy, FRAME_W, FRAME_H, x, y, FRAME_W, FRAME_H);
+    this.gear.draw(ctx, carried, info.pack, x, y, p.facing, this.anim.time);
   }
 }
 

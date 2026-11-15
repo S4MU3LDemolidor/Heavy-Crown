@@ -12,6 +12,7 @@ const STATE_COLORS: Record<PlayerState, string> = {
   charge: '#f0a040',
   air: '#a0d0f0',
   stumble: '#f06060',
+  ladder: '#a0f0a0',
 };
 
 export function drawWorld(ctx: CanvasRenderingContext2D, grid: TileGrid, camera: Camera): void {

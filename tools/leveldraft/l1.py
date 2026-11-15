@@ -23,6 +23,7 @@ s0.fill(33, 3, 43, 3, '#')           # F
 s0.fill(47, 22, 52, 22, '#')         # coin ledge
 s0.put(50, 21, 'c')                  # coin pouch
 s0.put(5, 29, '@')
+s0.put(11, 28, 'n')                  # Maren's first note
 
 # ---------- screen 1: the hall with the iron gate ----------
 s1 = Screen(' ')
@@ -82,6 +83,7 @@ export const L1: LevelDef = {
     k: { kind: 'item', item: 'iron_key' },
     G: { kind: 'object', object: 'gate', props: { key: 'iron_key' } },
     h: { kind: 'object', object: 'rope_hook' },
+    n: { kind: 'object', object: 'note', props: { id: 'note1' } },
   },
 """
 with open('src/content/levels/l1-overgrown-base.ts', 'w') as f:

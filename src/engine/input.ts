@@ -39,11 +39,14 @@ export class Input {
   private codesPressed = new Set<string>();
   private now = new Set<Action>();
   private before = new Set<Action>();
+  /** Which device was used last, for button labels in prompts. */
+  lastDevice: 'keys' | 'pad' = 'keys';
 
   constructor(target: Window) {
     target.addEventListener('keydown', (e) => {
       if (KEYS[e.code]) e.preventDefault();
       if (!e.repeat) this.codesPressedQueue.add(e.code);
+      this.lastDevice = 'keys';
       this.codesDown.add(e.code);
     });
     target.addEventListener('keyup', (e) => {
@@ -76,6 +79,13 @@ export class Input {
     return this.now.has(action) && !this.before.has(action);
   }
 
+  /** The label of the button for an action on the last-used device. */
+  label(action: Action): string {
+    const keys: Record<Action, string> = { left: 'Left', right: 'Right', up: 'Up', down: 'Down', jump: 'Space', interact: 'E', inventory: 'Tab', drop: 'Q', pause: 'Esc' };
+    const pad: Record<Action, string> = { left: 'Left', right: 'Right', up: 'Up', down: 'Down', jump: 'A', interact: 'X', inventory: 'Y', drop: 'B', pause: 'Start' };
+    return (this.lastDevice === 'pad' ? pad : keys)[action];
+  }
+
   /** A raw key (KeyboardEvent.code) pressed this step, for debug shortcuts. */
   keyPressed(code: string): boolean {
     return this.codesPressed.has(code);
@@ -86,7 +96,10 @@ export class Input {
     for (const pad of navigator.getGamepads()) {
       if (!pad) continue;
       for (const [index, action] of PAD_BUTTONS) {
-        if (pad.buttons[index]?.pressed) this.now.add(action);
+        if (pad.buttons[index]?.pressed) {
+          this.now.add(action);
+          this.lastDevice = 'pad';
+        }
       }
       const ax = pad.axes[0] ?? 0;
       const ay = pad.axes[1] ?? 0;
