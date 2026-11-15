@@ -24,6 +24,29 @@ All art, the character and the tower are original. The game shares its genre and
 - Keyboard and gamepad (standard mapping). No touch controls in the MVP.
 - English text.
 
+## 1b. Story
+
+**The world.** The valley at the foot of the tower has lived in an endless dusk for a hundred years, ever since the Old King carried his crown up the tower and never came down. The old songs say the sun will not rise again until the crown is worn, and the crown will not be lifted until the three regalia it was made with, the Orb, the Scepter and the Seal, lie on the summit altar. Many have climbed. None came back.
+
+**The pilgrim.** The player is an unnamed young pilgrim in a red scarf. Ten years ago their mother, **Maren**, a cartographer, climbed the tower with her lantern and her maps to bring back the dawn. She never returned. The pilgrim climbs to find out what happened to her, and to finish what she started.
+
+**Why weight matters to the story.** Maren tried to carry everything. Her notes, found along the climb, are about what she carried, what she left behind and what it cost her. The game's mechanic is her lesson: you cannot carry it all at once.
+
+**How it is told.** Wordless where possible, short text where needed:
+- **Opening:** three short lines over the dusk valley and the tower, skippable:
+  "The sun has not risen in a hundred years." / "Ten years ago, my mother climbed the tower to bring it back." / "She never came down."
+- **Maren's notes:** one page per level, pinned or carved where she rested. Interact to read; reading pauses the game. Pages stay in the world (they weigh nothing and cannot be carried) and are collected in a Journal in the pause menu.
+  1. *Overgrown Base:* "I packed everything I own. Rope, books, bread, my good boots. The tower laughed at me on the first ledge."
+  2. *Drowned Cistern:* "Left my books by the water. Words are heavy when they are wet. I kept the map."
+  3. *Bell Hall:* "The bells ring when you land on them, like someone counting. I found the Scepter. I am too heavy to bring it higher today."
+  4. *Lightless Floors:* "Everything else can stay in the dark. I am keeping my lantern." (Her lantern rests nearby; it is the Lantern item.)
+  5. *Frozen Spire:* "The altar wants all three. I can carry only one at a time, and I am so tired. If you are reading this, climb lighter than I did."
+- **Her things are items:** the Lantern and the Tattered Map belonged to Maren; their descriptions say so.
+- **The summit:** Maren's red scarf, the twin of the pilgrim's, is tied to the altar, fluttering in the wind. She made it this far and went no further. Reading it shows her last line: "Climb lighter than I did."
+- **Ending:** when the crown is lifted, the dusk sky turns to sunrise for the first time in the game, the pilgrim staggers under the crown's weight, steadies, and looks out over the valley. Closing lines: "The crown was heavy." / "But I did not carry it alone." Then the stats.
+
+The pilgrim is never gendered in text.
+
 ## 2. Technology
 
 - **TypeScript + HTML canvas 2D**, our own small engine. No runtime dependencies.
