@@ -61,6 +61,8 @@ const GRIDS: Record<ItemId, string[]> = {
   orb: ['', '.....Y......', '....YYY.....', '.....G......', '...gGGGg....', '..gGYYGGg...', '.gGYTTGGgg..', '.gGYTtGGgg..', '.gGGGGGGgg..', '..gGGGGgg...', '...ggggg....'],
   scepter: ['.........YY.', '........YqqY', '........YqqY', '.........YY.', '........G...', '.......G....', '......Gg....', '.....Gg.....', '....Gg......', '...Gg.......', '..gg........'],
   seal: ['', '', '....gggg....', '..ggGGGGgg..', '.gGGYYYYGGg.', '.gGYGrrGYGg.', 'gGGYrRRrYGGg', 'gGGYrrrrYGGg', '.gGYGrrGYGg.', '.gGGYYYYGGg.', '..ggGGGGgg..'],
+  claws: ['', '', '.k.k.k......', '.K.K.K......', '.KIKIK......', '.BBBBB.k.k.k', '.BnnnB.K.K.K', '..BBB..KIKIK', '.......BBBBB', '.......BnnnB', '........BBB.'],
+  hook: ['....k.......', '...kIk......', '.k..K..k....', '.Kk.K.kK....', '..KKKKK.....', '....K.......', '....n.......', '...nBn.nnn..', '..nB.Bn...n.', '..nB.Bn..n..', '...nnn..n...'],
   crown: ['', '', '.Y...Y...Y..', '.YY.YYY.YY..', '.GYYGRGYYG..', '.GGYGGGYGG..', '.GrGGTGGrG..', '.GGGGGGGGG..', '.gggggggggg.', '', ''],
 };
 
@@ -134,5 +136,8 @@ export function ladderTile(rope: boolean): PixelBuffer {
 
 /** Maren's note pinned to the wall. */
 export const NOTE = parseGrid(['...r....', '.cccccc.', '.cCCCCc.', '.cccccc.', '.cCCCc..', '.cccccc.', '.cCCCCc.', '.cccccc.', '.cCCc.c.', '..ccccc.'], P);
+
+/** An iron ring for the Grappling Hook, on a bolt in the wall (8×10). */
+export const RING = parseGrid(['...kk...', '...KK...', '..kKKk..', '.k.II.k.', 'K......K', 'K......K', 'K......k', '.k....k.', '..kKKk..', '........'], P);
 
 export const PALETTE = P;

@@ -19,6 +19,8 @@ Open http://localhost:5173.
 | Interact / pick up | E | X |
 | Pack (choose an item, read about it) | Tab or I | Y |
 | Drop the selected item | Q | B |
+| Fire the Grappling Hook (aim with the arrows) | F | RB |
+| Cling to ivy or rough walls (with the Climbing Claws) | hold toward the wall (+ Up from the ground) | same |
 | Pause | Esc | Start |
 
 ## Commands
@@ -32,7 +34,7 @@ Open http://localhost:5173.
 | `npm run art:preview` | writes PNG previews of the art to `previews/` |
 | `npx tsx tools/reach.ts` | prints the tower with reachable ledges (flags are listed at the top of the file) |
 
-URL flags: `?new` clears the save, `?play` skips the title, `?debug` shows debug text (`2` toggles hitboxes), `?test` loads the grey jump-tuning tower.
+URL flags: `?new` clears the save, `?play` skips the title, `?debug` shows debug text (`2` toggles hitboxes), `?test` loads the grey jump-tuning tower, `?moves` loads a playground for the Climbing Claws and the Grappling Hook.
 
 ## Music
 

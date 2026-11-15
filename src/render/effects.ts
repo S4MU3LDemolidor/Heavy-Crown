@@ -104,6 +104,13 @@ export class Effects {
           this.shakeK = 2;
         } else this.dust(fx, fy, 3 + tier * 2, dustCols, 1 + tier * 0.25, 0.4);
       }
+      if (e.type === 'cling') {
+        const wx = player.wallDir > 0 ? player.body.x + player.body.w : player.body.x;
+        for (let i = 0; i < 4; i++) this.add({ x: wx, y: player.body.y + rand(4, 14), vx: -player.wallDir * rand(0.2, 0.8), vy: rand(-0.2, 0.4), g: 0.05, max: 18, colors: dustCols });
+      }
+      if (e.type === 'hookFire') {
+        for (let i = 0; i < 5; i++) this.add({ x: e.x, y: e.y, vx: rand(-1.2, 1.2), vy: rand(-1.2, 0.8), drag: 0.85, max: 10, colors: ['#ffffff', '#fff0a0', '#a0a0b0'] });
+      }
       if (e.type === 'bonkWall' || e.type === 'bonkCeiling') {
         const sx = e.type === 'bonkWall' ? (player.vx > 0 ? player.body.x : player.body.x + player.body.w) : fx;
         const sy = e.type === 'bonkWall' ? player.body.y + 6 : player.body.y;

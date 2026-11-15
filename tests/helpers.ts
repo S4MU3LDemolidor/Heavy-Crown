@@ -1,13 +1,13 @@
 import { Tile, TileGrid } from '../src/game/tiles';
 
-/** Builds a small grid from strings: '#' is solid, anything else is empty. */
+/** Builds a small grid from strings: '#' is solid, '%' an ivy wall (solid, climbable), anything else empty. */
 export function gridFrom(lines: string[]): TileGrid {
   const cols = lines[0].length;
   const rows = lines.length;
   const cells = new Uint8Array(cols * rows);
   lines.forEach((line, y) => {
     if (line.length !== cols) throw new Error(`gridFrom: row ${y} has ${line.length} columns, expected ${cols}`);
-    for (let x = 0; x < cols; x++) cells[y * cols + x] = line[x] === '#' ? Tile.Solid : Tile.Empty;
+    for (let x = 0; x < cols; x++) cells[y * cols + x] = line[x] === '#' ? Tile.Solid : line[x] === '%' ? Tile.Ivy : Tile.Empty;
   });
   return new TileGrid(cols, rows, cells);
 }

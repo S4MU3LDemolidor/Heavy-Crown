@@ -16,6 +16,8 @@ const MINI: Partial<Record<ItemId, string[]>> = {
   scepter: ['.q.', 'YqY', '.G.', '.G.', '.G.', '.g.'],
   seal: ['.ggg.', 'gGYGg', 'gYrYg', 'gGYGg', '.ggg.'],
   crown: ['Y.Y.Y', 'YGYGY', 'GRGTG', 'ggggg'],
+  claws: ['k.k', 'KIK', 'BnB'],
+  hook: ['.k.', 'kIk', '.n.', 'nBn'],
 };
 
 interface Mini {
@@ -72,6 +74,8 @@ export class PackGear {
       cursor += m.w - 3;
     }
     if (has('pickaxe')) put('pickaxe', px + pw - 5, py - 4);
+    if (has('claws')) put('claws', px + pw - 2, py + ph - 5);
+    if (has('hook')) put('hook', px - 2, py + 1);
     if (has('rope')) put('rope', px + Math.floor((pw - 8) / 2), py + ph - 4);
     if (has('crown')) {
       // worn on the head, not the pack

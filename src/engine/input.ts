@@ -1,4 +1,4 @@
-export type Action = 'left' | 'right' | 'up' | 'down' | 'jump' | 'interact' | 'inventory' | 'drop' | 'pause';
+export type Action = 'left' | 'right' | 'up' | 'down' | 'jump' | 'interact' | 'inventory' | 'drop' | 'pause' | 'hook';
 
 const KEYS: Record<string, Action> = {
   ArrowLeft: 'left',
@@ -14,6 +14,7 @@ const KEYS: Record<string, Action> = {
   Tab: 'inventory',
   KeyI: 'inventory',
   KeyQ: 'drop',
+  KeyF: 'hook',
   Escape: 'pause',
 };
 
@@ -24,6 +25,7 @@ const PAD_BUTTONS: Array<[number, Action]> = [
   [2, 'interact'],
   [3, 'inventory'],
   [9, 'pause'],
+  [5, 'hook'],
   [12, 'up'],
   [13, 'down'],
   [14, 'left'],
@@ -81,8 +83,8 @@ export class Input {
 
   /** The label of the button for an action on the last-used device. */
   label(action: Action): string {
-    const keys: Record<Action, string> = { left: 'Left', right: 'Right', up: 'Up', down: 'Down', jump: 'Space', interact: 'E', inventory: 'Tab', drop: 'Q', pause: 'Esc' };
-    const pad: Record<Action, string> = { left: 'Left', right: 'Right', up: 'Up', down: 'Down', jump: 'A', interact: 'X', inventory: 'Y', drop: 'B', pause: 'Start' };
+    const keys: Record<Action, string> = { left: 'Left', right: 'Right', up: 'Up', down: 'Down', jump: 'Space', interact: 'E', inventory: 'Tab', drop: 'Q', pause: 'Esc', hook: 'F' };
+    const pad: Record<Action, string> = { left: 'Left', right: 'Right', up: 'Up', down: 'Down', jump: 'A', interact: 'X', inventory: 'Y', drop: 'B', pause: 'Start', hook: 'RB' };
     return (this.lastDevice === 'pad' ? pad : keys)[action];
   }
 

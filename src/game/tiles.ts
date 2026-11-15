@@ -6,11 +6,16 @@ export const Tile = {
   Water: 2,
   Ice: 3,
   Ladder: 4,
+  /** Ivy-covered wall: solid; climbable with the Climbing Claws. */
+  Ivy: 5,
+  /** Rough stone: solid; climbable with the Climbing Claws. */
+  Rough: 6,
 } as const;
 
 export type TileId = (typeof Tile)[keyof typeof Tile];
 
-const SOLID: boolean[] = [false, true, false, true, false];
+const SOLID: boolean[] = [false, true, false, true, false, true, true];
+const CLIMBABLE: boolean[] = [false, false, false, false, false, true, true];
 
 /** Anything bodies can collide with. */
 export interface CollisionWorld {
@@ -58,6 +63,20 @@ export class TileGrid implements CollisionWorld {
         if (this.isSolid(tx, ty)) return true;
       }
     }
+    return false;
+  }
+
+  isClimbable(tx: number, ty: number): boolean {
+    return CLIMBABLE[this.get(tx, ty)];
+  }
+
+  /** True if any climbable wall tile overlaps the rectangle. */
+  climbableRect(x: number, y: number, w: number, h: number): boolean {
+    const x0 = Math.floor(x / TILE);
+    const x1 = Math.floor((x + w - 1) / TILE);
+    const y0 = Math.floor(y / TILE);
+    const y1 = Math.floor((y + h - 1) / TILE);
+    for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) if (this.isClimbable(tx, ty)) return true;
     return false;
   }
 

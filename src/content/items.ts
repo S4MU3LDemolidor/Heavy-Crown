@@ -20,6 +20,8 @@ export const ITEM_IDS = [
   'scepter',
   'seal',
   'crown',
+  'claws',
+  'hook',
 ] as const;
 
 export type ItemId = (typeof ITEM_IDS)[number];
@@ -61,6 +63,8 @@ export const ITEMS: Record<ItemId, ItemDef> = {
   scepter: { id: 'scepter', name: 'The Scepter', weight: 4, kind: 'relic', onPack: true, light: 28, desc: 'The Scepter of the old regalia. Maren held this once. She could not carry it higher.' },
   seal: { id: 'seal', name: 'The Seal', weight: 4, kind: 'relic', onPack: true, light: 28, desc: 'The Seal of the old regalia, a disc of dark gold. It is heavier than it looks.' },
   crown: { id: 'crown', name: 'The Crown', weight: 6, kind: 'crown', light: 40, desc: 'The crown.' },
+  claws: { id: 'claws', name: 'Climbing Claws', weight: 2, kind: 'tool', onPack: true, desc: 'Iron hooks for the hands. Hold toward ivy or rough stone to cling to it and climb. They will not hold more than twelve stones.' },
+  hook: { id: 'hook', name: 'Grappling Hook', weight: 3, kind: 'tool', onPack: true, desc: 'A hook on a long rope. Fire it at an iron ring to be pulled up to it. Heavier loads pull slower.' },
 };
 
 export const RELICS: ItemId[] = ['orb', 'scepter', 'seal'];

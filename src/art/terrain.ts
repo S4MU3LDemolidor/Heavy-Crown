@@ -6,6 +6,9 @@ import { PixelBuffer } from './buffer';
 import { hex, mix, withAlpha, type RGBA } from './color';
 import { bayer, fbm, hash2, valueNoise } from './noise';
 
+/** Ivy-wall leaf ramp (the same green in every level, so it reads as climbable). */
+const IVY = ['#1c2a1a', '#2e4422', '#47652a', '#6c8c32', '#a2b84a'];
+
 /** Theme colors as packed RGBA, resolved once. */
 export interface Swatch {
   stone: RGBA[];
@@ -198,6 +201,8 @@ export function paintScreen(world: World, band: number, theme: Theme): BakedScre
     for (let tx = 0; tx < cols; tx++) {
       if (!solid(tx, ty)) continue;
       const ice = tileAt(tx, ty) === Tile.Ice;
+      const ivy = tileAt(tx, ty) === Tile.Ivy;
+      const rough = tileAt(tx, ty) === Tile.Rough;
       const depth = depthOf(tx, ty);
       const upOpen = !solid(tx, ty - 1);
       const downOpen = !solid(tx, ty + 1);
@@ -239,6 +244,24 @@ export function paintScreen(world: World, band: number, theme: Theme): BakedScre
           if (downOpen && py === 7) c = st[0];
           else if (downOpen && py === 6) c = mix(c, st[0], 0.5);
           if (ice) c = mix(c, sw.accent2[2], py < 2 && upOpen ? 0.7 : 0.45);
+          if (ivy) {
+            // a thick mat of leaves over the stone: climbable with the Claws
+            const leaf = fbm(x, wy, 3, 2, 141);
+            const h = hash2(x, wy, 142);
+            if (leaf > 0.36 || h > 0.6) c = hex(IVY[leaf > 0.72 ? 4 : leaf > 0.6 ? 3 : leaf > 0.47 ? 2 : 1]);
+            if (h > 0.97) c = hex(IVY[4]);
+            if ((leaf < 0.32 && h < 0.3) || (wy % 4 === 3 && h < 0.35)) c = hex(IVY[0]);
+          }
+          if (rough) {
+            // pitted stone full of handholds
+            // handholds: dark pits with a lit lip above, in staggered rows so the wall reads as climbable
+            const row = Math.floor(wy / 4);
+            const hx = (x + (row % 2) * 2) % 4;
+            const pit = hash2(Math.floor((x + (row % 2) * 2) / 4), row, 151);
+            c = mix(c, st[2], 0.4);
+            if (pit > 0.35 && hx < 2 && wy % 4 === 2) c = st[0];
+            else if (pit > 0.35 && hx < 2 && wy % 4 === 1) c = st[5];
+          }
           // round off exposed corners
           if (upOpen && ((leftOpen && px === 0) || (rightOpen && px === 7)) && py === 0) continue;
           buf.set(x, sy, c);

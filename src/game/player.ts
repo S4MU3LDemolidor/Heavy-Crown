@@ -1,9 +1,9 @@
 import { makeBody, moveX, moveY, onGround, type Body } from './body';
 import type { CollisionWorld } from './tiles';
 import { TILE, TUNING } from './tuning';
-import { chargeFramesFor, jumpHeight, jumpSpeedXFactor, launchSpeed, walkFactor, type JumpMods } from './weight';
+import { chargeFramesFor, isOverloaded, jumpHeight, jumpHeightFactor, jumpSpeedXFactor, launchSpeed, walkFactor, type JumpMods } from './weight';
 
-export type PlayerState = 'ground' | 'charge' | 'air' | 'stumble' | 'ladder';
+export type PlayerState = 'ground' | 'charge' | 'air' | 'stumble' | 'ladder' | 'cling' | 'pull' | 'hang';
 
 export interface PlayerInput {
   left: boolean;
@@ -11,6 +11,8 @@ export interface PlayerInput {
   jump: boolean;
   up?: boolean;
   down?: boolean;
+  /** Fire the Grappling Hook. */
+  hook?: boolean;
 }
 
 /** A climbable ladder overlapping the body: its centre x and the world y of its top. */
@@ -28,6 +30,10 @@ export interface PlayerWorld extends CollisionWorld {
   iceUnder?(x: number, feetY: number, w: number): boolean;
   /** Horizontal wind acceleration (px/frame²) at a point, for airborne bodies. */
   windAt?(x: number, y: number): number;
+  /** True if a climbable wall (ivy, rough stone) overlaps the rectangle. */
+  climbableAt?(x: number, y: number, w: number, h: number): boolean;
+  /** The ring the hook would reach from (cx, cy) aiming along (ax, ay), within `range`. */
+  ringFor?(cx: number, cy: number, ax: number, ay: number, range: number): { x: number; y: number } | null;
 }
 
 /** Ice friction (spec section 4). */
@@ -35,6 +41,16 @@ const ICE_ACCEL = 0.04;
 const ICE_DECEL = 0.03;
 const WATER_WALK = 0.6;
 const MAX_WIND_VX = 3.5;
+
+/** Climbing Claws and Grappling Hook (full-game spec sections 3–4). */
+const CLIMB_SPEED = 0.6;
+const HEAVY_SLIDE = 1;
+const CLING_MAX_STONES = 12;
+const HEAVY_CLING = 9;
+const WALL_JUMP_HEIGHT = 40;
+const WALL_JUMP_SPEED = 1.6;
+export const HOOK_RANGE = 96;
+const HOOK_COOLDOWN = 20;
 
 export type PlayerEvent =
   | { type: 'chargeStart' }
@@ -44,7 +60,13 @@ export type PlayerEvent =
   /** fall: pixels from the apex to the landing; drop: landing feet y minus takeoff feet y (positive = lower). */
   | { type: 'land'; fall: number; drop: number; hard: boolean }
   | { type: 'grab' }
-  | { type: 'climbStep' };
+  | { type: 'climbStep' }
+  | { type: 'cling' }
+  | { type: 'mantle' }
+  | { type: 'wallJump' }
+  | { type: 'hookFire'; x: number; y: number }
+  | { type: 'hookMiss'; ax: number; ay: number }
+  | { type: 'hang' };
 
 export interface PlayerLoadout {
   stones: number;
@@ -55,6 +77,10 @@ export interface PlayerLoadout {
   crampons?: boolean;
   /** Multiplier on wind push (Fur Cloak: 0.3). */
   windResist?: number;
+  /** Climbing Claws: cling to and climb ivy and rough walls. */
+  claws?: boolean;
+  /** Grappling Hook: pull up to iron rings. */
+  hook?: boolean;
 }
 
 /** Pixels trimmed from each side of the body while on a ladder. */
@@ -77,13 +103,30 @@ export class Player {
   private apexY = 0;
   private takeoffFeetY = 0;
   private prevJump = false;
+  private prevHook = false;
+  private hookCooldown = 0;
+  private hangCharging = false;
+  private stuck = 0;
+  /** Which side the wall is on while clinging. */
+  wallDir: -1 | 1 = 1;
+  /** The ring being pulled to or hung from. */
+  ring: { x: number; y: number } | null = null;
   private climbDist = 0;
 
   constructor(x: number, y: number) {
     this.body = makeBody(x, y, TUNING.bodyW, TUNING.bodyH);
   }
 
-  get feetY(): number {
+  /** A full copy, for simulations that branch (the climbability checker). */
+  clone(): Player {
+    const c = Object.assign(Object.create(Player.prototype) as Player, this);
+    (c as { body: Body }).body = { ...this.body };
+    c.loadout = { ...this.loadout, mods: { ...this.loadout.mods } };
+    c.events = [];
+    return c;
+  }
+
+    get feetY(): number {
     return this.body.y + this.body.h;
   }
 
@@ -99,6 +142,14 @@ export class Player {
     this.events = [];
     const jumpPressed = input.jump && !this.prevJump;
     this.prevJump = input.jump;
+    const hookPressed = !!input.hook && !this.prevHook;
+    this.prevHook = !!input.hook;
+    if (this.hookCooldown > 0) this.hookCooldown--;
+    if (hookPressed && this.loadout.hook && this.state !== 'stumble' && this.state !== 'pull' && this.state !== 'ladder' && this.fireHook(input, world)) return;
+    if (this.state === 'ground' && input.up && this.dirOf(input) !== 0 && this.canCling() && this.wallBeside(this.dirOf(input) as -1 | 1, world)) {
+      this.enterCling(this.dirOf(input) as -1 | 1);
+      return;
+    }
     if ((this.state === 'ground' || this.state === 'air') && input.up && this.tryGrab(world)) return;
     if (this.state === 'ground' && input.down && this.tryGrabBelow(world)) return;
     switch (this.state) {
@@ -112,7 +163,16 @@ export class Player {
         this.updateCharge(input, world);
         break;
       case 'air':
-        this.updateAir(world);
+        this.updateAir(world, input);
+        break;
+      case 'cling':
+        this.updateCling(input, world, jumpPressed);
+        break;
+      case 'pull':
+        this.updatePull(world, jumpPressed);
+        break;
+      case 'hang':
+        this.updateHang(input, world);
         break;
       case 'stumble':
         this.updateStumble(world);
@@ -188,13 +248,197 @@ export class Player {
     return !this.loadout.crampons && !!world.iceUnder?.(this.body.x, this.feetY, this.body.w);
   }
 
-  private updateAir(world: PlayerWorld): void {
+  // ---------- Climbing Claws ----------
+
+  private canCling(): boolean {
+    return !!this.loadout.claws && this.loadout.stones <= CLING_MAX_STONES;
+  }
+
+  /** True if a climbable wall touches the body's side `dir`. */
+  private wallBeside(dir: -1 | 1, world: PlayerWorld): boolean {
+    if (!world.climbableAt) return false;
+    const x = dir > 0 ? this.body.x + this.body.w : this.body.x - 1;
+    return world.climbableAt(x, this.body.y + 3, 1, this.body.h - 6);
+  }
+
+  private enterCling(dir: -1 | 1): void {
+    this.state = 'cling';
+    this.wallDir = dir;
+    this.facing = dir;
+    this.vx = 0;
+    this.vy = 0;
+    this.body.remX = 0;
+    this.body.remY = 0;
+    this.climbDist = 0;
+    this.events.push({ type: 'cling' });
+  }
+
+  private updateCling(input: PlayerInput, world: PlayerWorld, jumpPressed: boolean): void {
+    const stones = this.loadout.stones;
+    if (jumpPressed) {
+      const h = WALL_JUMP_HEIGHT * jumpHeightFactor(stones) * (this.loadout.mods.springBoots ? 1.25 : 1);
+      this.vy = -launchSpeed(h);
+      this.vx = -this.wallDir * WALL_JUMP_SPEED * jumpSpeedXFactor(stones);
+      this.facing = this.vx > 0 ? 1 : -1;
+      this.leaveGround();
+      this.events.push({ type: 'wallJump' });
+      return;
+    }
+    if (this.dirOf(input) === -this.wallDir || !this.canCling() || !this.wallBeside(this.wallDir, world)) {
+      this.vx = 0;
+      this.leaveGround();
+      return;
+    }
+    const sideX = this.wallDir > 0 ? this.body.x + this.body.w : this.body.x - 1;
+    // feet level with the top of the wall: step up onto it
+    if (input.up && stones < HEAVY_CLING && !world.solidRect(sideX, this.feetY - 6, 1, 1)) {
+      let top = this.feetY - 6;
+      while (top < this.feetY + TILE && !world.solidRect(sideX, top, 1, 1)) top++;
+      const nx = this.body.x + this.wallDir * 6;
+      const ny = top - this.body.h;
+      if (!world.solidRect(nx, ny, this.body.w, this.body.h) && world.solidRect(nx, ny + this.body.h, this.body.w, 1)) {
+        this.body.x = nx;
+        this.body.y = ny;
+        this.body.remY = 0;
+        this.state = 'ground';
+        this.events.push({ type: 'mantle' });
+        return;
+      }
+    }
+    const speed = CLIMB_SPEED * walkFactor(stones);
+    const dy = stones >= HEAVY_CLING ? HEAVY_SLIDE : input.up ? -speed : input.down ? speed : 0;
+    if (dy === 0) return;
+    const hit = moveY(this.body, dy, world);
+    this.climbDist += Math.abs(dy);
+    if (this.climbDist >= 5) {
+      this.climbDist = 0;
+      this.events.push({ type: 'climbStep' });
+    }
+    if (hit && dy > 0) this.state = 'ground';
+  }
+
+  // ---------- Grappling Hook ----------
+
+  private fireHook(input: PlayerInput, world: PlayerWorld): boolean {
+    if (!world.ringFor || this.hookCooldown > 0) return false;
+    const dir = this.dirOf(input);
+    let ax: number;
+    let ay: number;
+    if (input.up) {
+      ax = dir * Math.SQRT1_2;
+      ay = dir ? -Math.SQRT1_2 : -1;
+    } else if (dir !== 0) {
+      ax = dir * 0.866;
+      ay = -0.5;
+    } else {
+      ax = this.facing * Math.SQRT1_2;
+      ay = -Math.SQRT1_2;
+    }
+    const ring = world.ringFor(this.body.x + this.body.w / 2, this.body.y + this.body.h / 2, ax, ay, HOOK_RANGE);
+    if (!ring) {
+      this.hookCooldown = HOOK_COOLDOWN;
+      this.events.push({ type: 'hookMiss', ax, ay });
+      return false;
+    }
+    this.ring = ring;
+    this.state = 'pull';
+    this.vx = 0;
+    this.vy = 0;
+    this.stuck = 0;
+    this.hangCharging = false;
+    if (ring.x !== this.body.x + this.body.w / 2) this.facing = ring.x > this.body.x ? 1 : -1;
+    this.events.push({ type: 'hookFire', x: ring.x, y: ring.y });
+    return true;
+  }
+
+  private letGoOfRing(): void {
+    this.ring = null;
+    this.vx = 0;
+    this.vy = 0;
+    this.leaveGround();
+  }
+
+  private updatePull(world: PlayerWorld, jumpPressed: boolean): void {
+    if (!this.ring || jumpPressed) {
+      this.letGoOfRing();
+      return;
+    }
+    const stones = this.loadout.stones;
+    // overloaded: the rope only strains and the climber dangles where they are
+    if (isOverloaded(stones)) return;
+    const speed = Math.max(1.2, 4 * (1 - 0.04 * stones));
+    const tx = this.ring.x - this.body.w / 2;
+    const ty = this.ring.y + 3;
+    const dx = tx - this.body.x;
+    const dy = ty - this.body.y;
+    const d = Math.hypot(dx, dy);
+    if (d <= speed) {
+      moveX(this.body, dx, world);
+      moveY(this.body, dy, world);
+      this.body.x = Math.round(tx);
+      this.body.y = ty;
+      this.body.remX = 0;
+      this.body.remY = 0;
+      this.state = 'hang';
+      this.hangCharging = false;
+      this.charge = 0;
+      this.events.push({ type: 'hang' });
+      return;
+    }
+    const hx = moveX(this.body, (dx / d) * speed, world);
+    const hy = moveY(this.body, (dy / d) * speed, world);
+    this.stuck = hx || hy ? this.stuck + 1 : 0;
+    if (this.stuck > 10) this.letGoOfRing();
+  }
+
+  private updateHang(input: PlayerInput, world: PlayerWorld): void {
+    if (!this.ring) {
+      this.letGoOfRing();
+      return;
+    }
+    if (input.down && !this.hangCharging) {
+      this.letGoOfRing();
+      return;
+    }
+    const dir = this.dirOf(input);
+    if (dir !== 0) this.facing = dir;
+    if (input.jump) {
+      if (!this.hangCharging) {
+        this.hangCharging = true;
+        this.chargeTime = 0;
+        this.charge = 0;
+        this.events.push({ type: 'chargeStart' });
+      } else {
+        this.chargeTime++;
+        this.charge = Math.min(1, this.chargeTime / chargeFramesFor(this.loadout.stones));
+      }
+      return;
+    }
+    if (this.hangCharging) {
+      const { stones, mods } = this.loadout;
+      this.vy = -launchSpeed(jumpHeight(this.charge, stones, mods));
+      this.vx = dir * TUNING.jumpSpeedX * jumpSpeedXFactor(stones);
+      this.ring = null;
+      this.hangCharging = false;
+      this.leaveGround();
+      this.events.push({ type: 'jump', charge: this.charge });
+    }
+    void world;
+  }
+
+  private updateAir(world: PlayerWorld, input?: PlayerInput): void {
+    const want = input ? this.dirOf(input) : 0;
     const wind = world.windAt?.(this.body.x + this.body.w / 2, this.body.y + this.body.h / 2) ?? 0;
     if (wind !== 0) {
       this.vx += wind * (this.loadout.windResist ?? 1);
       this.vx = Math.max(-MAX_WIND_VX, Math.min(MAX_WIND_VX, this.vx));
     }
     if (moveX(this.body, this.vx, world)) {
+      const into = this.vx > 0 ? 1 : -1;
+      if (want === into && this.canCling() && this.wallBeside(into, world)) {
+        this.enterCling(into);
+        return;
+      }
       this.vx = -this.vx * TUNING.wallBounce;
       if (this.vx !== 0) this.facing = this.vx > 0 ? 1 : -1;
       this.events.push({ type: 'bonkWall' });
@@ -213,6 +457,8 @@ export class Player {
       }
     }
     if (this.body.y < this.apexY) this.apexY = this.body.y;
+    // falling alongside a climbable wall while holding toward it: grab it
+    if (want !== 0 && this.vy > -1 && this.canCling() && this.wallBeside(want, world)) this.enterCling(want);
   }
 
   private land(world: PlayerWorld): void {

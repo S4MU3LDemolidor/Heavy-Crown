@@ -13,6 +13,9 @@ const STATE_COLORS: Record<PlayerState, string> = {
   air: '#a0d0f0',
   stumble: '#f06060',
   ladder: '#a0f0a0',
+  cling: '#80e0c0',
+  pull: '#c0a0ff',
+  hang: '#e0c0ff',
 };
 
 export function drawWorld(ctx: CanvasRenderingContext2D, grid: TileGrid, camera: Camera): void {

@@ -1,4 +1,5 @@
 import { LEVELS } from './content/levels';
+import { TEST_MOVES } from './content/levels/test-moves';
 import { TEST_TOWER } from './content/levels/test-tower';
 import { Audio } from './engine/audio';
 import { Input } from './engine/input';
@@ -20,6 +21,7 @@ import { THEMES } from './content/themes';
 const params = new URLSearchParams(location.search);
 const DEBUG = params.has('debug');
 const GREYBOX = params.has('test');
+const MOVES = params.has('moves');
 if (params.has('new')) clearSave();
 
 const canvas = document.getElementById('screen') as HTMLCanvasElement;
@@ -27,9 +29,9 @@ const audio = new Audio();
 for (const ev of ['keydown', 'pointerdown', 'gamepadconnected']) addEventListener(ev, () => audio.unlock());
 const renderer = new Renderer(canvas);
 const input = new Input(window);
-const world = buildWorld(GREYBOX ? [TEST_TOWER] : LEVELS);
+const world = buildWorld(GREYBOX ? [TEST_TOWER] : MOVES ? [TEST_MOVES] : LEVELS);
 let game = new Game(world);
-const saved = GREYBOX || !params.has('play') ? null : readSave();
+const saved = GREYBOX || MOVES || !params.has('play') ? null : readSave();
 if (saved) game.load(saved);
 const camera = new Camera(world.screenCount);
 const scene = new Scene(world);
@@ -49,7 +51,7 @@ type Mode =
   | { kind: 'journal'; page: number }
   | { kind: 'ending'; t: number; stats: EndStats; baseY: number }
   | { kind: 'credits'; t: number };
-let mode: Mode = GREYBOX || params.has('play') ? { kind: 'play' } : { kind: 'title', sel: 0 };
+let mode: Mode = GREYBOX || MOVES || params.has('play') ? { kind: 'play' } : { kind: 'title', sel: 0 };
 let meterT = 0;
 let saveT = 0;
 let showHitboxes = false;
@@ -79,7 +81,7 @@ function saveOptions(): void {
 }
 
 function save(): void {
-  if (!GREYBOX && mode.kind !== 'title' && mode.kind !== 'ending' && mode.kind !== 'credits' && mode.kind !== 'intro') writeSave(game.save());
+  if (!GREYBOX && !MOVES && mode.kind !== 'title' && mode.kind !== 'ending' && mode.kind !== 'credits' && mode.kind !== 'intro') writeSave(game.save());
 }
 
 function startNewClimb(): void {
@@ -134,7 +136,13 @@ function playSounds(): void {
       else audio.land(tier, e.hard);
     }
     if (e.type === 'bonkWall' || e.type === 'bonkCeiling') audio.bonk();
-    if (e.type === 'grab' || e.type === 'climbStep') audio.creak();
+    if (e.type === 'grab' || (e.type === 'climbStep' && p.state === 'ladder')) audio.creak();
+    if (e.type === 'cling' || (e.type === 'climbStep' && p.state === 'cling')) audio.clawScrape();
+    if (e.type === 'mantle') audio.step(tier);
+    if (e.type === 'wallJump') audio.jump(0.4);
+    if (e.type === 'hookFire') audio.hookFire();
+    if (e.type === 'hookMiss') audio.hookMiss();
+    if (e.type === 'hang') audio.hookLatch();
   }
   if (p.state !== 'charge') audio.chargeStop();
   if (p.state === 'ground' && p.vx !== 0) {
@@ -171,8 +179,8 @@ function playSounds(): void {
   audio.tick();
 }
 
-function step(left: boolean, right: boolean, jump: boolean, up = false, down = false): void {
-  game.step({ left, right, jump, up, down });
+function step(left: boolean, right: boolean, jump: boolean, up = false, down = false, hook = false): void {
+  game.step({ left, right, jump, up, down, hook });
   playSounds();
   for (const e of game.events) if (e.type === 'weight') meterT = 180;
   for (const e of game.player.events) if (e.type === 'land') save();
@@ -271,7 +279,7 @@ function update(): void {
           if (mode.kind !== 'play') return;
         }
       }
-      step(input.held('left'), input.held('right'), input.held('jump'), input.held('up'), input.held('down'));
+      step(input.held('left'), input.held('right'), input.held('jump'), input.held('up'), input.held('down'), input.held('hook'));
       break;
     }
     case 'inventory': {
@@ -437,8 +445,8 @@ function render(): void {
       drawTextCentered(
         ctx,
         input.lastDevice === 'pad'
-          ? 'Stick walk  A hold to jump  X take/use  B drop  Y pack  Start pause'
-          : 'Arrows walk  Space hold to jump  E take/use  Q drop  Tab pack  Esc pause',
+          ? 'Stick walk  A hold to jump  X take/use  B drop  Y pack  RB hook  Start pause'
+          : 'Arrows walk  Space hold to jump  E take/use  Q drop  Tab pack  F hook  Esc pause',
         240,
         236,
         UI.dim,
@@ -482,8 +490,8 @@ startLoop(update, render);
 if (import.meta.env.DEV) {
   const w = window as unknown as Record<string, unknown>;
   w.__hc = {
-    run(frames: number, inp: { left?: boolean; right?: boolean; jump?: boolean; up?: boolean; down?: boolean } = {}) {
-      for (let i = 0; i < frames; i++) step(!!inp.left, !!inp.right, !!inp.jump, !!inp.up, !!inp.down);
+    run(frames: number, inp: { left?: boolean; right?: boolean; jump?: boolean; up?: boolean; down?: boolean; hook?: boolean } = {}) {
+      for (let i = 0; i < frames; i++) step(!!inp.left, !!inp.right, !!inp.jump, !!inp.up, !!inp.down, !!inp.hook);
       render();
       const p = game.player;
       return { x: p.body.x, y: p.body.y, state: p.state, screen: camera.screenFromBottom, stones: game.stones };

@@ -47,6 +47,7 @@ export interface World {
 const OBJECT_CHARS: Record<string, LegendEntry> = {
   '=': { kind: 'object', object: 'plank' },
   C: { kind: 'object', object: 'cracked' },
+  '*': { kind: 'object', object: 'ring' },
 };
 
 /** Built-in tile characters. */
@@ -58,6 +59,8 @@ const TILE_CHARS: Record<string, { tile: TileId; open?: boolean }> = {
   i: { tile: Tile.Ice },
   H: { tile: Tile.Ladder },
   '@': { tile: Tile.Empty },
+  '%': { tile: Tile.Ivy },
+  '&': { tile: Tile.Rough },
 };
 
 /** Builds the tower from levels listed bottom to top. */

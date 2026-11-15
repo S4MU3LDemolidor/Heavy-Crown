@@ -54,6 +54,12 @@ export class ClimberAnimator {
         if (p.vy < -1.4) return 'rise';
         if (p.vy < 1.4) return 'apex';
         return (this.t >> 3) % 2 ? 'fall1' : 'fall0';
+      case 'cling':
+        return (Math.floor(p.body.y / 4) & 1) ? 'ladder1' : 'ladder0';
+      case 'hang':
+        return p.charge > 0.5 ? 'apex' : 'ladder0';
+      case 'pull':
+        return 'rise';
       case 'stumble': {
         const k = p.stumbleLeft;
         return k > 24 ? 'stumble0' : k > 16 ? 'stumble1' : k > 8 ? 'stumble2' : 'stumble3';
@@ -329,6 +335,24 @@ export class Scene {
           ctx.fillStyle = i >= pts.length - 1 ? '#962838' : '#d6453b';
           ctx.fillRect(px, py, 1, 2);
         }
+      }
+    }
+    // the hook's rope, from the hands to the ring
+    if (p.ring && (p.state === 'pull' || p.state === 'hang')) {
+      const hx = p.body.x + p.body.w / 2;
+      const hy = p.body.y + 1 - camY;
+      const rx = p.ring.x;
+      const ry = p.ring.y + 2 - camY;
+      const n = Math.max(1, Math.ceil(Math.hypot(rx - hx, ry - hy)));
+      const sag = p.state === 'pull' ? 0 : 1;
+      for (let i = 0; i <= n; i++) {
+        const t = i / n;
+        const x = Math.round(hx + (rx - hx) * t);
+        const y = Math.round(hy + (ry - hy) * t + Math.sin(t * Math.PI) * sag);
+        ctx.fillStyle = '#120d18';
+        ctx.fillRect(x, y + 1, 1, 1);
+        ctx.fillStyle = i % 3 === 0 ? '#7a5232' : '#a87a48';
+        ctx.fillRect(x, y, 1, 1);
       }
     }
     const sheet = p.facing > 0 ? this.sheetR : this.sheetL;

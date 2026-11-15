@@ -1,5 +1,5 @@
 import type { PixelBuffer } from '../art/buffer';
-import { gateTile, ITEM_SIZE, itemSprites, ladderTile, NOTE, ROPE_HOOK } from '../art/items';
+import { gateTile, ITEM_SIZE, itemSprites, ladderTile, NOTE, RING, ROPE_HOOK } from '../art/items';
 import { ITEMS, type ItemId } from '../content/items';
 import { THEMES } from '../content/themes';
 import { SCREEN_H } from '../game/tuning';
@@ -16,6 +16,7 @@ export class ObjectRenderer {
   private readonly rope = toCanvas(ladderTile(true));
   private readonly wood = toCanvas(ladderTile(false));
   private readonly note = toCanvas(NOTE);
+  private readonly ring = toCanvas(RING);
 
   constructor() {
     const s = itemSprites();
@@ -82,6 +83,12 @@ export class ObjectRenderer {
     this.drawCracked(ctx, game, camY);
     this.drawBells(ctx, game, camY, t);
     this.drawAltar(ctx, game, camY, t);
+    for (const r of game.rings) {
+      const x = r.x - 4;
+      const y = r.y - 4 - camY;
+      if (y < -10 || y > VIEW_H) continue;
+      ctx.drawImage(this.ring, x, y - 2);
+    }
   }
 
   private drawPlanks(ctx: CanvasRenderingContext2D, game: Game, camY: number): void {

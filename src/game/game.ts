@@ -167,6 +167,8 @@ export class Game implements PlayerWorld {
   cracked: CrackedWall[] = [];
   bells: Bell[] = [];
   altar: Altar | null = null;
+  /** Iron rings for the Grappling Hook, centre points in world pixels. */
+  rings: { x: number; y: number }[] = [];
   notesRead = new Set<string>();
   discovered = new Set<number>();
   /** Level ids whose title card has been shown. */
@@ -204,6 +206,7 @@ export class Game implements PlayerWorld {
       if (s.entry.object === 'note') this.notes.push({ id: String(props.id), tx: s.tx, ty: s.ty });
       if (s.entry.object === 'plate') this.plates.push({ id: `${s.tx},${s.ty}`, tx: s.tx, ty: s.ty, link: String(props.link), need: Number(props.need ?? 3), pressed: false });
       if (s.entry.object === 'altar') this.altar = { tx: s.tx, ty: s.ty, placed: [], crownTaken: false };
+      if (s.entry.object === 'ring') this.rings.push({ x: s.tx * TILE + TILE / 2, y: s.ty * TILE + TILE / 2 });
     }
     this.planks = this.groupRuns('plank').map(({ tx0, tx1, ty }) => ({ id: `${tx0},${ty}`, tx0, tx1, ty, down: false, timer: 0, heavy: 0 }));
     this.cracked = this.groupRegions('cracked').map((cells) => ({ id: `${cells[0][0]},${cells[0][1]}`, cells, broken: false }));
@@ -300,6 +303,41 @@ export class Game implements PlayerWorld {
     return false;
   }
 
+  climbableAt(x: number, y: number, w: number, h: number): boolean {
+    return this.world.grid.climbableRect(x, y, w, h);
+  }
+
+  /** True if nothing solid lies on the straight line between two points (the ends excluded). */
+  clearLine(x0: number, y0: number, x1: number, y1: number): boolean {
+    const d = Math.hypot(x1 - x0, y1 - y0);
+    const n = Math.ceil(d / 2);
+    for (let i = 2; i < n - 2; i++) {
+      const t = i / n;
+      if (this.solidRect(Math.floor(x0 + (x1 - x0) * t), Math.floor(y0 + (y1 - y0) * t), 1, 1)) return false;
+    }
+    return true;
+  }
+
+  /** The nearest ring within `range` of (cx, cy), inside a ±45° cone around the aim, with a clear line. */
+  ringFor(cx: number, cy: number, ax: number, ay: number, range: number): { x: number; y: number } | null {
+    const al = Math.hypot(ax, ay) || 1;
+    let best: { x: number; y: number } | null = null;
+    let bestD = Infinity;
+    for (const r of this.rings) {
+      const dx = r.x - cx;
+      const dy = r.y - cy;
+      const d = Math.hypot(dx, dy);
+      if (d > range || d < 1) continue;
+      const cos = (dx * ax + dy * ay) / (d * al);
+      if (cos < Math.SQRT1_2) continue;
+      if (d < bestD && this.clearLine(cx, cy, r.x, r.y)) {
+        best = r;
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
   waterAt(x: number, y: number, w: number, h: number): boolean {
     return this.world.grid.anyIn(x, y, w, h, Tile.Water);
   }
@@ -370,6 +408,8 @@ export class Game implements PlayerWorld {
     l.noStumble = this.has('feather_charm');
     l.crampons = this.has('crampons');
     l.windResist = this.has('fur_cloak') ? 0.3 : 1;
+    l.claws = this.has('claws');
+    l.hook = this.has('hook');
     if (l.stones !== before) this.events.push({ type: 'weight', stones: l.stones });
   }
 

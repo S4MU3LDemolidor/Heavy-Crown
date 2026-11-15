@@ -266,6 +266,27 @@ export class Audio {
     this.noise(0.5, { vol: 0.08, freq: 600, type: 'bandpass', q: 1, sweep: 0.4, attack: 0.05 });
   }
 
+  clawScrape(): void {
+    this.noise(0.09, { vol: 0.07, freq: 2600, type: 'bandpass', q: 3, sweep: 0.6 });
+    this.tone(1400 + Math.random() * 500, 0.04, { wave: 'square', vol: 0.012 });
+  }
+
+  hookFire(): void {
+    this.noise(0.22, { vol: 0.12, freq: 1800, type: 'bandpass', q: 1.5, sweep: 2.2 });
+    this.tone(1200, 0.08, { wave: 'square', vol: 0.03, delay: 0.12, slide: 0.7 });
+    this.noise(0.05, { vol: 0.2, freq: 3200, type: 'bandpass', q: 4, delay: 0.13 });
+  }
+
+  hookMiss(): void {
+    this.noise(0.25, { vol: 0.08, freq: 1500, type: 'bandpass', q: 1.2, sweep: 2 });
+    this.tone(500, 0.12, { wave: 'square', vol: 0.025, delay: 0.3, slide: 0.6 });
+  }
+
+  hookLatch(): void {
+    this.tone(880, 0.25, { wave: 'triangle', vol: 0.05, slide: 0.9 });
+    this.creak();
+  }
+
   creak(): void {
     this.tone(260 + Math.random() * 60, 0.09, { wave: 'sawtooth', vol: 0.015, slide: 0.85 });
   }
