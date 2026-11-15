@@ -36,7 +36,7 @@ URL flags: `?new` clears the save, `?play` skips the title, `?debug` shows debug
 
 ## Music
 
-The game plays `public/audio/<theme>.mp3` when present (`title`, `overgrown`, `cistern`, `bells`, `dark`, `frozen`); otherwise it generates an ambient score in each level's key.
+Each level has its own ambient track in `public/audio/<theme>.mp3` (`title`, `overgrown`, `cistern`, `bells`, `dark`, `frozen`), made with Higgsfield (ElevenLabs Music v2.5, instrumental). Each one is trimmed before its fade-out, crossfaded into its own start so it loops without a seam, and normalized to about −18 LUFS. If a file is missing, the game generates an ambient score in that level's key instead.
 
 ## Layout
 
