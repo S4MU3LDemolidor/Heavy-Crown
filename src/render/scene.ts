@@ -10,6 +10,8 @@ import type { Player } from '../game/player';
 import { SCREEN_H, VIEW_H, VIEW_W } from '../game/tuning';
 import { loadTier } from '../game/weight';
 import { Ambient } from './ambient';
+import { Effects } from './effects';
+import { Fog, makeVignette } from './fog';
 import { toCanvas } from './canvas';
 import { layerY, levelSpan } from './parallaxMath';
 import { Lighting } from './lighting';
@@ -82,6 +84,13 @@ export class Scene {
   readonly objects = new ObjectRenderer();
   private readonly gear = new PackGear();
   private readonly lighting = new Lighting();
+  readonly effects = new Effects();
+  private readonly fog = new Fog();
+  private readonly vignette = makeVignette();
+  /** The level whose backdrop is fading out, and how far the fade has gone (0..1). */
+  private fadeFrom = -1;
+  private fadeK = 1;
+  private shownLevel = -1;
   /** Wind streak particles (gust warnings). */
   private streaks: { x: number; y: number; len: number; v: number }[] = [];
 
@@ -120,6 +129,15 @@ export class Scene {
     for (const k of [b - 1, b, b + 1]) if (k >= 0 && k < this.world.screenCount) this.band(k);
   }
 
+  /** Feeds this step's events to the effects (call after each game step). */
+  onStep(game: Game): void {
+    const p = game.player;
+    const theme = THEMES[this.world.levels[this.world.bandLevel[Math.max(0, Math.min(this.world.screenCount - 1, Math.floor(p.centerY / SCREEN_H)))]].theme];
+    this.effects.spawn(game.events, p.events, p, theme, game.waterAt(p.body.x, p.body.y, p.body.w, p.body.h + 1));
+    this.effects.update();
+    if (this.fadeK < 1) this.fadeK = Math.min(1, this.fadeK + 1 / 45);
+  }
+
   update(player: Player): void {
     this.anim.update(player);
     const info = this.frameInfo(player);
@@ -146,19 +164,36 @@ export class Scene {
 
   draw(ctx: CanvasRenderingContext2D, camera: Camera, game: Game): void {
     const player = game.player;
-    const camY = Math.round(camera.y);
+    const camY = Math.round(camera.y) + this.effects.shake;
     const topBand = Math.max(0, Math.floor(camY / SCREEN_H));
     const li = this.world.bandLevel[camera.band];
-    const art = this.levelArt[li];
-    // backdrop of the camera's level (crossfades between levels come with the atmosphere pass)
-    const t = this.anim.time;
-    ctx.drawImage(art.sky, 0, 0);
-    this.ambient.drawClouds(ctx, art.theme, t);
-    for (const name of LAYERS) {
-      const L = art.layers[name];
-      ctx.drawImage(L.canvas, 0, layerY(this.world, li, name, L.h, camY));
-      if (name === 'far') this.ambient.drawBirds(ctx, art.theme, t);
+    if (li !== this.shownLevel) {
+      if (this.shownLevel >= 0) {
+        this.fadeFrom = this.shownLevel;
+        this.fadeK = 0;
+      }
+      this.shownLevel = li;
     }
+    const art = this.levelArt[li];
+    const t = this.anim.time;
+    const backdrop = (a: LevelArt, lvl: number) => {
+      ctx.drawImage(a.sky, 0, 0);
+      this.effects.drawSky(ctx, a.theme);
+      this.ambient.drawClouds(ctx, a.theme, t);
+      for (const name of LAYERS) {
+        const L = a.layers[name];
+        ctx.drawImage(L.canvas, 0, layerY(this.world, lvl, name, L.h, camY));
+        if (name === 'far') this.ambient.drawBirds(ctx, a.theme, t);
+      }
+    };
+    // the backdrop of the level being left fades into the new one
+    if (this.fadeK < 1 && this.fadeFrom >= 0) {
+      backdrop(this.levelArt[this.fadeFrom], this.fadeFrom);
+      ctx.save();
+      ctx.globalAlpha = this.fadeK;
+      backdrop(art, li);
+      ctx.restore();
+    } else backdrop(art, li);
     const gust = game.gust();
     const windHere = this.world.bandWind[camera.band] ?? 0;
     const gustK = windHere === 0 ? 0 : gust.phase === 'gust' ? 1 : gust.phase === 'telegraph' ? 0.4 : 0;
@@ -169,11 +204,16 @@ export class Scene {
       ctx.drawImage(baked.canvas, 0, y);
       this.ambient.drawFoliage(ctx, baked.tufts, baked.vines, camY, t, player, gustK);
     }
+    this.fog.drawHaze(ctx, art.theme, t);
+    this.drawWater(ctx, camY, t);
     this.objects.drawBack(ctx, game, camY, t);
     this.objects.drawItems(ctx, game, camY);
     const carried = game.carried.map((c) => c.id);
     this.drawClimber(ctx, player, camY, carried);
     this.drawWind(ctx, game, camY);
+    this.effects.drawRays(ctx, art.theme);
+    this.effects.drawWorld(ctx, camY);
+    this.fog.drawMist(ctx, art.theme, t);
     // lighting: the camera's level sets the ambient; skipped where the level is fully lit
     const theme = art.theme;
     if (theme.ambient < 1) {
@@ -204,6 +244,31 @@ export class Scene {
     }
     this.ambient.drawParticles(ctx, theme, camera.band, camY, game.windAt(0, camY + VIEW_H / 2));
     this.objects.drawGlints(ctx, game, camY, t);
+    this.effects.drawStun(ctx, player, camY, t);
+    ctx.drawImage(this.vignette, 0, 0);
+  }
+
+  /** Moving highlights on water surfaces. */
+  private drawWater(ctx: CanvasRenderingContext2D, camY: number, t: number): void {
+    const grid = this.world.grid;
+    const ty0 = Math.floor(camY / 8);
+    const ty1 = Math.floor((camY + VIEW_H) / 8);
+    for (let ty = ty0; ty <= ty1; ty++) {
+      for (let tx = 0; tx < grid.cols; tx++) {
+        if (grid.get(tx, ty) !== 2 || grid.get(tx, ty - 1) === 2) continue;
+        for (let px = 0; px < 8; px++) {
+          const x = tx * 8 + px;
+          const w = Math.sin(x * 0.35 + t * 0.06) + Math.sin(x * 0.11 - t * 0.04);
+          if (w > 1.2) {
+            ctx.fillStyle = 'rgba(216, 248, 255, 0.9)';
+            ctx.fillRect(x, ty * 8 - camY, 1, 1);
+          } else if (w > 0.6) {
+            ctx.fillStyle = 'rgba(168, 232, 224, 0.5)';
+            ctx.fillRect(x, ty * 8 - camY + 1, 1, 1);
+          }
+        }
+      }
+    }
   }
 
   private drawWind(ctx: CanvasRenderingContext2D, game: Game, camY: number): void {

@@ -47,6 +47,7 @@ function step(left: boolean, right: boolean, jump: boolean, up = false, down = f
   camera.update(game.player.centerY);
   if (camera.band !== before) scene.warm(camera.band);
   game.discover(camera.band);
+  scene.onStep(game);
   scene.update(game.player);
   if (meterT > 0) meterT--;
   if (game.player.state === 'ground' && ++saveT >= 120) {
@@ -71,6 +72,7 @@ function update(): void {
         const it = game.interaction();
         if (it) {
           it.run();
+          scene.onStep(game);
           for (const e of game.events) if (e.type === 'read') mode = { kind: 'note', id: e.note };
           for (const e of game.events) if (e.type === 'weight') meterT = 180;
           save();

@@ -17,11 +17,16 @@
     "noEmit": true,
     "types": [
       "vite/client"
-    ]
+    ],
+    "allowJs": true,
+    "checkJs": false
   },
   "include": [
     "src",
     "tests",
     "tools"
+  ],
+  "exclude": [
+    "src/vendor"
   ]
 }
