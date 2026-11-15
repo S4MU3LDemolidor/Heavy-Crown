@@ -18,7 +18,7 @@ import { dimScreen, drawTextCentered, UI } from './ui/draw';
 import { drawDialogue, drawPicker } from './ui/dialogue';
 import { DialogueRunner } from './game/story';
 import { ITEMS } from './content/items';
-import { ENDING_LINES, INTRO_LINES } from './content/story';
+import { ENDING_LINES, INTRO_LINES, LEVEL_NAMES } from './content/story';
 import { THEMES } from './content/themes';
 
 const params = new URLSearchParams(location.search);
@@ -127,7 +127,7 @@ function checkTitleCard(): void {
   if (game.levelsSeen.has(level.id)) return;
   game.levelsSeen.add(level.id);
   const th = THEMES[level.theme];
-  card = { numeral: th.numeral, title: th.title, t: 0 };
+  card = { numeral: `${th.numeral} · ${level.id}`, title: LEVEL_NAMES[level.id] ?? th.title, t: 0 };
 }
 
 let walked = 0;

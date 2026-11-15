@@ -246,7 +246,7 @@ export class Scene {
       if (carried.includes('lantern')) {
         const flicker = Math.sin(t * 0.21) * 2 + Math.sin(t * 0.53) * 1.5;
         const lx = cx - player.facing * 7;
-        this.lighting.add(lx, cy + 3, 72 + flicker, '#ffd890', 1);
+        this.lighting.add(lx, cy + 3, (game.flags.has('lanternOil') ? 100 : 72) + flicker, '#ffd890', 1);
         this.lighting.add(lx, cy + 3, 26, '#fff0c0', 0.6);
       }
       for (const id of carried) {

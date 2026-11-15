@@ -8,8 +8,8 @@ Spec: `docs/superpowers/specs/2026-11-15-heavy-crown-full-game-design.md`. Stage
 |---|---|---|
 | 1 | Climbing Claws, Grappling Hook | done (7d165df) |
 | 2 | NPCs, dialogue, trades, bucket lifts, scares | done |
-| 3 | Story script (NPC conversations, 12 notes) | in progress |
-| G | Level generator, per-level entry/exit checks | — |
+| 3 | Story script (NPC conversations, 12 notes) | done |
+| G | Level generator, per-level entry/exit checks | in progress |
 | 4 | Act I (levels 1–6) | — |
 | 5 | Act II (7–12) | — |
 | 6 | Act III (13–18) | — |

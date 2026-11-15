@@ -34,6 +34,8 @@ export interface Gate {
   opens: string;
   /** Pressure plate link name, for gates held open by plates. */
   link?: string;
+  /** Story flag that opens this gate (e.g. the Bellringer's door). */
+  flag?: string;
   open: boolean;
   /** 0 = shut, 40 = fully raised. */
   anim: number;
@@ -222,11 +224,11 @@ export class Game implements PlayerWorld, StoryHost {
   }
 
   private buildObjects(): void {
-    const gateCells = new Map<string, { tx: number; ty: number; opens: string; link?: string }>();
+    const gateCells = new Map<string, { tx: number; ty: number; opens: string; link?: string; flag?: string }>();
     for (const s of this.world.spawns) {
       if (s.entry.kind !== 'object') continue;
       const props = s.entry.props ?? {};
-      if (s.entry.object === 'gate') gateCells.set(`${s.tx},${s.ty}`, { tx: s.tx, ty: s.ty, opens: props.key ? String(props.key) : '', link: props.link ? String(props.link) : undefined });
+      if (s.entry.object === 'gate') gateCells.set(`${s.tx},${s.ty}`, { tx: s.tx, ty: s.ty, opens: props.key ? String(props.key) : '', link: props.link ? String(props.link) : undefined, flag: props.flag ? String(props.flag) : undefined });
       if (s.entry.object === 'rope_hook') {
         const leftOpen = !this.world.grid.isSolid(s.tx - 1, s.ty + 1);
         const ladderTx = leftOpen ? s.tx - 1 : s.tx + 1;
@@ -263,7 +265,7 @@ export class Game implements PlayerWorld, StoryHost {
       if (gateCells.has(`${cell.tx},${cell.ty - 1}`)) continue;
       let ty1 = cell.ty;
       while (gateCells.has(`${cell.tx},${ty1 + 1}`)) ty1++;
-      this.gates.push({ id: `${cell.tx},${cell.ty}`, tx: cell.tx, ty0: cell.ty, ty1, opens: cell.opens, link: cell.link, open: false, anim: 0 });
+      this.gates.push({ id: `${cell.tx},${cell.ty}`, tx: cell.tx, ty0: cell.ty, ty1, opens: cell.opens, link: cell.link, flag: cell.flag, open: false, anim: 0 });
     }
   }
 
@@ -479,6 +481,12 @@ export class Game implements PlayerWorld, StoryHost {
     for (const g of this.gates) g.anim = g.open ? Math.min(40, g.anim + 1) : Math.max(0, g.anim - 3);
     for (const b of this.bells) if (b.swing > 0) b.swing--;
     this.stepStory();
+    for (const g of this.gates) {
+      if (g.flag && !g.open && this.flags.has(g.flag)) {
+        g.open = true;
+        this.events.push({ type: 'gateMove', open: true, x: g.tx * TILE + 4, y: g.ty0 * TILE });
+      }
+    }
     for (const e of this.player.events) {
       if (e.type !== 'land' && e.type !== 'bonkWall' && e.type !== 'bonkCeiling') continue;
       const pb = this.player.body;
@@ -595,6 +603,8 @@ export class Game implements PlayerWorld, StoryHost {
       const key = this.carried.find((c) => ITEMS[c.id].opens === g.opens);
       const top = g.ty0 * TILE - 4;
       if (key) return { label: `Open with ${ITEMS[key.id].name}`, x: gx + 4, y: top, run: () => this.openGate(g, key) };
+      if (g.flag) return { label: 'Sealed shut', x: gx + 4, y: top, run: () => this.events.push({ type: 'locked', x: gx + 4, y: top }) };
+      if (g.link) continue;
       const keyName = ITEMS[g.opens as ItemId]?.name ?? 'a key';
       return { label: `Locked: needs ${keyName}`, x: gx + 4, y: top, run: () => this.events.push({ type: 'locked', x: gx + 4, y: top }) };
     }
