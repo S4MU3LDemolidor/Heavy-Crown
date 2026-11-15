@@ -163,6 +163,25 @@ if (import.meta.env.DEV) {
       scene.warm(camera.band);
       render();
     },
+    /** Puts the climber in a level-relative cell: level id, screen (0 = top of that level), tile x, tile y. */
+    goto(L: number, sc: number, tx: number, ty: number) {
+      const li = world.levels.findIndex((l) => l.id === L);
+      const band = world.bandLevel.indexOf(li) + sc;
+      const p = game.player;
+      p.body.x = tx * 8 - 1;
+      p.body.y = (band * 34 + ty + 1) * 8 - 18;
+      p.body.remX = p.body.remY = 0;
+      p.vx = p.vy = 0;
+      p.state = 'ground';
+      camera.snapTo(p.centerY);
+      scene.warm(camera.band);
+      render();
+    },
+    give(...ids: string[]) {
+      for (const id of ids) game.carried.push({ uid: 5000 + game.carried.length, id: id as never });
+      game.updateLoadout();
+      render();
+    },
     openInventory() {
       mode = { kind: 'inventory', sel: 0, message: null, messageT: 0 };
       render();
