@@ -12,6 +12,10 @@ import { loadTier } from './game/weight';
 import { drawDebugText } from './render/debugDraw';
 import { Scene } from './render/scene';
 import { drawInventory, drawNote, drawPrompt, drawWeightMeter } from './ui/hud';
+import { CREDITS, drawJournal, drawLogo, drawMap, drawMenu, drawOptions, drawStats, drawStoryLines, drawTitleCard, formatTime, type EndStats, type Options } from './ui/screens';
+import { dimScreen, drawTextCentered, UI } from './ui/draw';
+import { ENDING_LINES, INTRO_LINES } from './content/story';
+import { THEMES } from './content/themes';
 
 const params = new URLSearchParams(location.search);
 const DEBUG = params.has('debug');
@@ -25,21 +29,93 @@ const renderer = new Renderer(canvas);
 const input = new Input(window);
 const world = buildWorld(GREYBOX ? [TEST_TOWER] : LEVELS);
 let game = new Game(world);
-const saved = GREYBOX ? null : readSave();
+const saved = GREYBOX || !params.has('play') ? null : readSave();
 if (saved) game.load(saved);
 const camera = new Camera(world.screenCount);
 const scene = new Scene(world);
 camera.snapTo(game.player.centerY);
 scene.warm(camera.band);
 
-type Mode = { kind: 'play' } | { kind: 'inventory'; sel: number; message: string | null; messageT: number } | { kind: 'note'; id: string };
-let mode: Mode = { kind: 'play' };
+type Mode =
+  | { kind: 'title'; sel: number }
+  | { kind: 'confirmNew'; sel: number }
+  | { kind: 'intro'; t: number }
+  | { kind: 'play' }
+  | { kind: 'inventory'; sel: number; message: string | null; messageT: number }
+  | { kind: 'note'; id: string }
+  | { kind: 'pause'; sel: number }
+  | { kind: 'options'; sel: number; back: 'pause' | 'title' }
+  | { kind: 'map' }
+  | { kind: 'journal'; page: number }
+  | { kind: 'ending'; t: number; stats: EndStats; baseY: number }
+  | { kind: 'credits'; t: number };
+let mode: Mode = GREYBOX || params.has('play') ? { kind: 'play' } : { kind: 'title', sel: 0 };
 let meterT = 0;
 let saveT = 0;
 let showHitboxes = false;
+let card: { numeral: string; title: string; t: number } | null = null;
+let uiT = 0;
+let options: Options = loadOptions();
+audio.setVolumes(options.music, options.sfx);
+
+function loadOptions(): Options {
+  try {
+    const o = JSON.parse(localStorage.getItem('heavycrown.options') ?? 'null');
+    if (o) return { music: o.music ?? 0.7, sfx: o.sfx ?? 0.8, alwaysMeter: !!o.alwaysMeter };
+  } catch {
+    /* storage unavailable */
+  }
+  return { music: 0.7, sfx: 0.8, alwaysMeter: false };
+}
+
+function saveOptions(): void {
+  try {
+    localStorage.setItem('heavycrown.options', JSON.stringify(options));
+  } catch {
+    /* storage unavailable */
+  }
+  audio.setVolumes(options.music, options.sfx);
+}
 
 function save(): void {
-  if (!GREYBOX) writeSave(game.save());
+  if (!GREYBOX && mode.kind !== 'title' && mode.kind !== 'ending' && mode.kind !== 'credits' && mode.kind !== 'intro') writeSave(game.save());
+}
+
+function startNewClimb(): void {
+  clearSave();
+  game = new Game(world);
+  camera.snapTo(game.player.centerY);
+  scene.warm(camera.band);
+  mode = { kind: 'intro', t: 0 };
+}
+
+function continueClimb(): void {
+  const d = readSave();
+  game = new Game(world);
+  if (d) game.load(d);
+  camera.snapTo(game.player.centerY);
+  scene.warm(camera.band);
+  mode = { kind: 'play' };
+}
+
+function startEnding(): void {
+  audio.chargeStop();
+  mode = {
+    kind: 'ending',
+    t: 0,
+    baseY: camera.y,
+    stats: { time: formatTime(game.stats.frames), jumps: game.stats.jumps, falls: game.stats.falls, biggestFall: game.stats.biggestFall, gold: game.goldDelivered() },
+  };
+  clearSave();
+}
+
+/** Shows a level's title card the first time the climber enters it. */
+function checkTitleCard(): void {
+  const level = world.levels[world.bandLevel[camera.band]];
+  if (game.levelsSeen.has(level.id)) return;
+  game.levelsSeen.add(level.id);
+  const th = THEMES[level.theme];
+  card = { numeral: th.numeral, title: th.title, t: 0 };
 }
 
 let walked = 0;
@@ -103,6 +179,7 @@ function step(left: boolean, right: boolean, jump: boolean, up = false, down = f
   camera.update(game.player.centerY);
   if (camera.band !== before) scene.warm(camera.band);
   game.discover(camera.band);
+  checkTitleCard();
   scene.onStep(game);
   scene.update(game.player);
   if (meterT > 0) meterT--;
@@ -114,14 +191,59 @@ function step(left: boolean, right: boolean, jump: boolean, up = false, down = f
 
 function update(): void {
   input.poll();
-  if (DEBUG) {
-    if (input.keyPressed('Digit2')) showHitboxes = !showHitboxes;
-  }
+  uiT++;
+  if (card && ++card.t > 180) card = null;
+  if (DEBUG && input.keyPressed('Digit2')) showHitboxes = !showHitboxes;
+  const back = input.pressed('pause') || input.pressed('inventory');
+  const ok = input.pressed('jump') || input.pressed('interact');
+  const nav = (sel: number, n: number) => {
+    if (input.pressed('up')) {
+      audio.ui();
+      return (sel - 1 + n) % n;
+    }
+    if (input.pressed('down')) {
+      audio.ui();
+      return (sel + 1) % n;
+    }
+    return sel;
+  };
   switch (mode.kind) {
+    case 'title': {
+      audio.setMusic('title');
+      const items = titleItems();
+      mode.sel = nav(mode.sel, items.length);
+      if (ok) {
+        audio.ui();
+        const pick = items[mode.sel];
+        if (pick === 'Continue') continueClimb();
+        else if (pick === 'New Climb') mode = readSave() ? { kind: 'confirmNew', sel: 0 } : (startNewClimb(), mode);
+        else mode = { kind: 'options', sel: 0, back: 'title' };
+      }
+      scene.update(game.player);
+      break;
+    }
+    case 'confirmNew':
+      if (input.pressed('left') || input.pressed('right') || input.pressed('up') || input.pressed('down')) mode.sel = 1 - mode.sel;
+      if (ok) mode.sel === 1 ? startNewClimb() : (mode = { kind: 'title', sel: 0 });
+      else if (back) mode = { kind: 'title', sel: 0 };
+      break;
+    case 'intro':
+      mode.t++;
+      scene.update(game.player);
+      if (ok || back || mode.t > INTRO_LINES.length * 150 + 140) {
+        mode = { kind: 'play' };
+        checkTitleCard();
+      }
+      break;
     case 'play': {
+      if (input.pressed('pause')) {
+        mode = { kind: 'pause', sel: 0 };
+        audio.chargeStop();
+        return;
+      }
       if (input.pressed('inventory')) {
         mode = { kind: 'inventory', sel: 0, message: null, messageT: 0 };
-        meterT = 1;
+        audio.chargeStop();
         return;
       }
       if (input.pressed('interact')) {
@@ -132,6 +254,10 @@ function update(): void {
           playSounds();
           for (const e of game.events) if (e.type === 'read') mode = { kind: 'note', id: e.note };
           for (const e of game.events) if (e.type === 'weight') meterT = 180;
+          if (game.events.some((e) => e.type === 'crown')) {
+            startEnding();
+            return;
+          }
           save();
           if (mode.kind !== 'play') return;
         }
@@ -146,6 +272,8 @@ function update(): void {
       if (input.pressed('drop') && n) {
         if (game.drop(mode.sel)) {
           mode.sel = Math.max(0, Math.min(mode.sel, game.carried.length - 1));
+          scene.onStep(game);
+          playSounds();
           save();
         } else {
           mode.message = 'You can only put things down on solid ground.';
@@ -153,20 +281,100 @@ function update(): void {
         }
       }
       if (mode.messageT > 0 && --mode.messageT === 0) mode.message = null;
-      if (input.pressed('inventory') || input.pressed('pause')) {
+      if (back) {
         mode = { kind: 'play' };
         meterT = 120;
       }
       break;
     }
     case 'note':
-      if (input.pressed('interact') || input.pressed('pause') || input.pressed('jump')) mode = { kind: 'play' };
+      if (ok || back) mode = { kind: 'play' };
+      break;
+    case 'pause': {
+      const items = pauseItems();
+      if (input.pressed('pause')) {
+        mode = { kind: 'play' };
+        break;
+      }
+      mode.sel = nav(mode.sel, items.length);
+      if (ok) {
+        audio.ui();
+        const pick = items[mode.sel];
+        if (pick === 'Resume') mode = { kind: 'play' };
+        else if (pick === 'Journal') mode = { kind: 'journal', page: Math.max(0, game.notesRead.size - 1) };
+        else if (pick === 'Map') mode = { kind: 'map' };
+        else if (pick === 'Options') mode = { kind: 'options', sel: 0, back: 'pause' };
+        else {
+          save();
+          mode = { kind: 'title', sel: 0 };
+          game = new Game(world);
+          camera.snapTo(game.player.centerY);
+        }
+      }
+      break;
+    }
+    case 'options': {
+      mode.sel = nav(mode.sel, 5);
+      const dir = input.pressed('right') ? 1 : input.pressed('left') ? -1 : 0;
+      if (mode.sel === 0 && dir) options.music = Math.max(0, Math.min(1, Math.round((options.music + dir * 0.1) * 10) / 10));
+      if (mode.sel === 1 && dir) {
+        options.sfx = Math.max(0, Math.min(1, Math.round((options.sfx + dir * 0.1) * 10) / 10));
+        audio.ui();
+      }
+      if (dir || ok) saveOptions();
+      if (ok && mode.sel === 2) {
+        if (document.fullscreenElement) void document.exitFullscreen();
+        else void document.documentElement.requestFullscreen?.();
+      }
+      if (ok && mode.sel === 3) options.alwaysMeter = !options.alwaysMeter;
+      if ((ok && mode.sel === 4) || back) mode = mode.back === 'pause' ? { kind: 'pause', sel: 0 } : { kind: 'title', sel: 0 };
+      break;
+    }
+    case 'map':
+      if (ok || back) mode = { kind: 'pause', sel: 0 };
+      break;
+    case 'journal': {
+      const n = game.notesRead.size;
+      if (input.pressed('left') && n) mode.page = (mode.page - 1 + n) % n;
+      if (input.pressed('right') && n) mode.page = (mode.page + 1) % n;
+      if (ok || back) mode = { kind: 'pause', sel: 0 };
+      break;
+    }
+    case 'ending': {
+      mode.t++;
+      const k = Math.max(0, Math.min(1, (mode.t - 60) / 360));
+      scene.dawn = k;
+      const ease = k * k * (3 - 2 * k);
+      camera.y = mode.baseY - ease * 150;
+      scene.effects.update();
+      scene.update(game.player);
+      audio.tick();
+      if (mode.t > 760 && ok) mode = { kind: 'credits', t: 0 };
+      break;
+    }
+    case 'credits':
+      mode.t++;
+      if ((mode.t > 120 && ok) || mode.t > 1200) {
+        scene.dawn = 0;
+        game = new Game(world);
+        camera.snapTo(game.player.centerY);
+        mode = { kind: 'title', sel: 0 };
+      }
       break;
   }
 }
 
+function titleItems(): string[] {
+  return readSave() ? ['Continue', 'New Climb', 'Options'] : ['New Climb', 'Options'];
+}
+
+function pauseItems(): string[] {
+  return ['Resume', 'Journal', ...(game.has('map') ? ['Map'] : []), 'Options', 'Quit to title'];
+}
+
 function render(): void {
   const ctx = renderer.view;
+  scene.hideClimber = mode.kind === 'title' || mode.kind === 'confirmNew';
   scene.draw(ctx, camera, game);
   const camY = Math.round(camera.y);
   if (showHitboxes) {
@@ -174,16 +382,64 @@ function render(): void {
     ctx.strokeStyle = '#ff00ff';
     ctx.strokeRect(b.x + 0.5, b.y - camY + 0.5, b.w - 1, b.h - 1);
   }
-  if (mode.kind === 'play') {
-    const it = game.interaction();
-    if (it) drawPrompt(ctx, it, camY, input);
-    drawWeightMeter(ctx, game.stones, meterT / 30);
+  const hint = (a: string, b: string) => `${input.label(a as never)} ${b}`;
+  switch (mode.kind) {
+    case 'title':
+    case 'confirmNew': {
+      ctx.fillStyle = 'rgba(10, 6, 16, 0.35)';
+      ctx.fillRect(0, 0, 480, 270);
+      drawLogo(ctx, 240, 64, uiT);
+      drawTextCentered(ctx, 'A tower. A crown. Everything you carry.', 240, 100, UI.dim);
+      if (mode.kind === 'title') drawMenu(ctx, titleItems(), mode.sel, 240, 150, uiT);
+      else {
+        dimScreen(ctx, 0.5);
+        drawTextCentered(ctx, 'Start a new climb?', 240, 120, UI.ink);
+        drawTextCentered(ctx, 'Your current climb will be lost.', 240, 134, UI.dim);
+        drawMenu(ctx, ['No', 'Yes'], mode.sel, 240, 156, uiT);
+      }
+      drawTextCentered(ctx, `${input.label('jump')} choose`, 240, 252, UI.dim);
+      break;
+    }
+    case 'intro':
+      drawStoryLines(ctx, INTRO_LINES, mode.t, 150, Math.max(0, 0.85 - Math.max(0, mode.t - INTRO_LINES.length * 150) / 140));
+      break;
+    case 'play': {
+      const it = game.interaction();
+      if (it) drawPrompt(ctx, it, camY, input);
+      drawWeightMeter(ctx, game.stones, options.alwaysMeter ? 1 : meterT / 30);
+      break;
+    }
+    case 'inventory':
+      drawInventory(ctx, game, mode.sel, input, scene.objects, mode.message);
+      break;
+    case 'note': {
+      const n = game.noteText(mode.id);
+      drawNote(ctx, n.title, n.text, input);
+      break;
+    }
+    case 'pause':
+      dimScreen(ctx, 0.6);
+      drawTextCentered(ctx, 'Paused', 240, 70, UI.gold);
+      drawMenu(ctx, pauseItems(), mode.sel, 240, 96, uiT);
+      break;
+    case 'options':
+      drawOptions(ctx, options, mode.sel, !!document.fullscreenElement, uiT);
+      break;
+    case 'map':
+      drawMap(ctx, game, (b) => (game.discovered.has(b) ? scene.band(b).canvas : null));
+      break;
+    case 'journal':
+      drawJournal(ctx, [...game.notesRead], mode.page, `${input.label('left')}/${input.label('right')} turn   ${input.label('pause')} close`);
+      break;
+    case 'ending':
+      if (mode.t > 300) drawStoryLines(ctx, ENDING_LINES, mode.t - 300, 140, 0.2);
+      if (mode.t > 640) drawStats(ctx, mode.stats, (mode.t - 640) / 60, mode.t > 760 ? hint('jump', 'continue') : '');
+      break;
+    case 'credits':
+      drawStoryLines(ctx, CREDITS, mode.t, 25, Math.min(0.9, mode.t / 60));
+      break;
   }
-  if (mode.kind === 'inventory') drawInventory(ctx, game, mode.sel, input, scene.objects, mode.message);
-  if (mode.kind === 'note') {
-    const n = game.noteText(mode.id);
-    drawNote(ctx, n.title, n.text, input);
-  }
+  if (card && mode.kind === 'play') drawTitleCard(ctx, card.numeral, card.title, card.t);
   if (DEBUG) {
     const stones = game.stones;
     drawDebugText(ctx, [
@@ -240,6 +496,31 @@ if (import.meta.env.DEV) {
       for (const id of ids) game.carried.push({ uid: 5000 + game.carried.length, id: id as never });
       game.updateLoadout();
       render();
+    },
+    /** Advances the whole main loop (menus included) n frames with no input. */
+    frames(n: number) {
+      for (let i = 0; i < n; i++) update();
+      render();
+      return mode.kind;
+    },
+    /** Puts the three relics on the altar and lifts the crown. */
+    finish() {
+      mode = { kind: 'play' };
+      const li = world.levels.findIndex((l) => l.id === 5);
+      const p = game.player;
+      p.body.x = 29 * 8;
+      p.body.y = (world.bandLevel.indexOf(li) * 34 + 7) * 8 - 18;
+      p.state = 'ground';
+      camera.snapTo(p.centerY);
+      for (const id of ['orb', 'scepter', 'seal']) game.carried.push({ uid: 7000 + game.carried.length, id: id as never });
+      game.updateLoadout();
+      for (let i = 0; i < 4; i++) {
+        game.interact();
+        scene.onStep(game);
+        if (game.events.some((e) => e.type === 'crown')) startEnding();
+      }
+      render();
+      return mode.kind;
     },
     openInventory() {
       mode = { kind: 'inventory', sel: 0, message: null, messageT: 0 };

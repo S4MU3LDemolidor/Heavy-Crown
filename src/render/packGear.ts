@@ -15,6 +15,7 @@ const MINI: Partial<Record<ItemId, string[]>> = {
   orb: ['..Y..', '.gGg.', 'gGTGg', 'gGGGg', '.ggg.'],
   scepter: ['.q.', 'YqY', '.G.', '.G.', '.G.', '.g.'],
   seal: ['.ggg.', 'gGYGg', 'gYrYg', 'gGYGg', '.ggg.'],
+  crown: ['Y.Y.Y', 'YGYGY', 'GRGTG', 'ggggg'],
 };
 
 interface Mini {
@@ -72,6 +73,12 @@ export class PackGear {
     }
     if (has('pickaxe')) put('pickaxe', px + pw - 5, py - 4);
     if (has('rope')) put('rope', px + Math.floor((pw - 8) / 2), py + ph - 4);
+    if (has('crown')) {
+      // worn on the head, not the pack
+      const m = this.minis.crown!;
+      const hx = facing > 0 ? 15 - 1 : FRAME_W - 15 - m.w + 2;
+      ctx.drawImage(facing > 0 ? m.r : m.l, frameX + hx, frameY + 4);
+    }
     if (has('lantern')) {
       const sway = Math.round(Math.sin(t * 0.07));
       put('lantern', px - 3 + sway, py + ph - 8);

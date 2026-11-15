@@ -1,4 +1,4 @@
-import { layerHeight, paintLayer, paintSky, type LayerName } from '../art/backdrop';
+import { layerHeight, paintDawn, paintLayer, paintSky, type LayerName } from '../art/backdrop';
 import { PixelBuffer } from '../art/buffer';
 import { BODY_FRAMES, buildClimberSheet, FEET_X, FEET_Y, FRAME_H, FRAME_W, type BodyFrame, type ClimberSheet } from '../art/climber';
 import { paintScreen, type BakedLight, type Tuft, type Vine } from '../art/terrain';
@@ -91,6 +91,11 @@ export class Scene {
   private fadeFrom = -1;
   private fadeK = 1;
   private shownLevel = -1;
+  /** 0..1: how far the ending's sunrise has come. */
+  dawn = 0;
+  /** Hide the climber (title screen). */
+  hideClimber = false;
+  private dawnSky: HTMLCanvasElement | null = null;
   /** Wind streak particles (gust warnings). */
   private streaks: { x: number; y: number; len: number; v: number }[] = [];
 
@@ -178,7 +183,14 @@ export class Scene {
     const t = this.anim.time;
     const backdrop = (a: LevelArt, lvl: number) => {
       ctx.drawImage(a.sky, 0, 0);
-      this.effects.drawSky(ctx, a.theme);
+      if (this.dawn > 0) {
+        this.dawnSky ??= toCanvas(paintDawn());
+        ctx.save();
+        ctx.globalAlpha = this.dawn;
+        ctx.drawImage(this.dawnSky, 0, 0);
+        ctx.restore();
+      }
+      this.effects.drawSky(ctx, a.theme, 1 - this.dawn);
       this.ambient.drawClouds(ctx, a.theme, t);
       for (const name of LAYERS) {
         const L = a.layers[name];
@@ -209,15 +221,16 @@ export class Scene {
     this.objects.drawBack(ctx, game, camY, t);
     this.objects.drawItems(ctx, game, camY);
     const carried = game.carried.map((c) => c.id);
-    this.drawClimber(ctx, player, camY, carried);
+    if (!this.hideClimber) this.drawClimber(ctx, player, camY, carried);
     this.drawWind(ctx, game, camY);
     this.effects.drawRays(ctx, art.theme);
     this.effects.drawWorld(ctx, camY);
     this.fog.drawMist(ctx, art.theme, t);
     // lighting: the camera's level sets the ambient; skipped where the level is fully lit
     const theme = art.theme;
-    if (theme.ambient < 1) {
-      this.lighting.begin(theme.ambient, theme.tint);
+    const ambient = theme.ambient + (1 - theme.ambient) * this.dawn;
+    if (ambient < 1) {
+      this.lighting.begin(ambient, this.dawn > 0.5 ? '#ffe0c0' : theme.tint);
       const cx = player.body.x + player.body.w / 2;
       const cy = player.body.y + player.body.h / 2 - camY;
       this.lighting.add(cx, cy, 18, '#c8c0e0', 0.45);

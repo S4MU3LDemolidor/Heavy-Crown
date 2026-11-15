@@ -145,6 +145,7 @@ export interface SaveData {
   order: number;
   cracked?: string[];
   altar?: ItemId[];
+  levelsSeen?: number[];
 }
 
 const rectsOverlap = (ax: number, ay: number, aw: number, ah: number, bx: number, by: number, bw: number, bh: number) =>
@@ -166,6 +167,8 @@ export class Game implements PlayerWorld {
   altar: Altar | null = null;
   notesRead = new Set<string>();
   discovered = new Set<number>();
+  /** Level ids whose title card has been shown. */
+  levelsSeen = new Set<number>();
   stats: Stats = { frames: 0, jumps: 0, falls: 0, biggestFall: 0 };
   events: GameEvent[] = [];
   private nextUid = 1;
@@ -623,6 +626,13 @@ export class Game implements PlayerWorld {
     return true;
   }
 
+  /** Gold delivered to the summit: carried treasure plus treasure lying on the top screen. */
+  goldDelivered(): number {
+    let gold = this.gold;
+    for (const it of this.items) if (it.body.y < SCREEN_H) gold += ITEMS[it.id].gold ?? 0;
+    return gold;
+  }
+
   noteText(id: string): { title: string; text: string } {
     return NOTES[id] ?? { title: 'A note', text: '' };
   }
@@ -644,6 +654,7 @@ export class Game implements PlayerWorld {
       order: this.order,
       cracked: this.cracked.filter((c) => c.broken).map((c) => c.id),
       altar: this.altar ? [...this.altar.placed] : [],
+      levelsSeen: [...this.levelsSeen],
     };
   }
 
@@ -664,6 +675,7 @@ export class Game implements PlayerWorld {
     this.order = d.order;
     for (const c of this.cracked) c.broken = (d.cracked ?? []).includes(c.id);
     if (this.altar) this.altar.placed = [...(d.altar ?? [])];
+    this.levelsSeen = new Set(d.levelsSeen ?? []);
     this.updateLoadout();
     this.events = [];
   }

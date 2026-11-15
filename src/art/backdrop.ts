@@ -226,3 +226,14 @@ export function paintLayer(theme: Theme, layer: LayerName, height: number): Pixe
   }
   return buf;
 }
+
+/** The first sunrise in a hundred years (the ending). */
+export function paintDawn(): PixelBuffer {
+  const buf = new PixelBuffer(VIEW_W, VIEW_H);
+  const stops = ['#2a3a78', '#4a4a92', '#8a5a9a', '#d27a8a', '#f6a878', '#ffd890', '#fff2c0'].map((c) => hex(c));
+  gradient(buf, stops, 0, VIEW_H);
+  streaks(buf, hex('#ffd0a0'), 150, 230, 12, 0.5);
+  streaks(buf, hex('#b07aa8'), 80, 140, 14, 0.4);
+  sun(buf, 240, 236, 26, hex('#fffbe8'), hex('#ffd890'));
+  return buf;
+}

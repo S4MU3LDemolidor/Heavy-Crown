@@ -178,13 +178,16 @@ export class Effects {
   }
 
   /** The aurora over the Frozen Spire (behind clouds and layers). */
-  drawSky(ctx: CanvasRenderingContext2D, theme: Theme): void {
-    if (theme.id !== 'frozen') return;
+  drawSky(ctx: CanvasRenderingContext2D, theme: Theme, alpha = 1): void {
+    if (theme.id !== 'frozen' || alpha <= 0) return;
     if (this.tick % 2 === 0) {
       for (const a of this.auroras) a.update(2 / 60);
       this.skyCanvas.render(this.auroras, 0, 0);
     }
+    ctx.save();
+    ctx.globalAlpha = alpha;
     ctx.drawImage(this.skyCanvas.canvas, 0, 0);
+    ctx.restore();
   }
 
   /** Light beams through the Bell Hall's windows (over the scene, before lighting). */
