@@ -1,4 +1,4 @@
-import type { PixelBuffer } from '../art/buffer';
+import { PixelBuffer } from '../art/buffer';
 import { gateTile, ITEM_SIZE, itemSprites, ladderTile, NOTE, RING, ROPE_HOOK } from '../art/items';
 import { ITEMS, type ItemId } from '../content/items';
 import { THEMES } from '../content/themes';
@@ -6,6 +6,7 @@ import { SCREEN_H } from '../game/tuning';
 import type { Game } from '../game/game';
 import { Tile } from '../game/tiles';
 import { TILE, VIEW_H } from '../game/tuning';
+import { liftSprite, npcSprites, scareSprites } from '../art/npcs';
 import { toCanvas } from './canvas';
 
 /** Draws the world's objects and items (spec sections 7–8). */
@@ -17,14 +18,36 @@ export class ObjectRenderer {
   private readonly wood = toCanvas(ladderTile(false));
   private readonly note = toCanvas(NOTE);
   private readonly ring = toCanvas(RING);
+  private readonly lift = toCanvas(liftSprite());
+  /** NPC frames: [right-facing, left-facing] per frame. */
+  private readonly npc: Record<string, { r: HTMLCanvasElement[]; l: HTMLCanvasElement[]; w: number; h: number }> = {};
+  readonly scare: Record<string, HTMLCanvasElement> = {};
 
   constructor() {
     const s = itemSprites();
     this.items = Object.fromEntries(Object.entries(s).map(([k, v]) => [k, toCanvas(v as PixelBuffer)])) as Record<ItemId, HTMLCanvasElement>;
+    for (const [k, art] of Object.entries(npcSprites())) {
+      this.npc[k] = {
+        r: art.frames.map((f) => toCanvas(f)),
+        l: art.frames.map((f) => {
+          const m = new PixelBuffer(f.w, f.h);
+          m.blit(f, 0, 0, true);
+          return toCanvas(m);
+        }),
+        w: art.w,
+        h: art.h,
+      };
+    }
+    for (const [k, b] of Object.entries(scareSprites())) this.scare[k] = toCanvas(b);
     this.gate = {};
     for (const tint of ['iron', 'bronze', 'bone'] as const) {
       this.gate[tint] = { top: toCanvas(gateTile('top', tint)), mid: toCanvas(gateTile('mid', tint)), bottom: toCanvas(gateTile('bottom', tint)) };
     }
+  }
+
+  /** The NPC's first frame, facing right, for the dialogue portrait. */
+  portrait(sprite: string): HTMLCanvasElement | null {
+    return this.npc[sprite]?.r[0] ?? null;
   }
 
   itemCanvas(id: ItemId): HTMLCanvasElement {
@@ -217,6 +240,28 @@ export class ObjectRenderer {
     ctx.fillStyle = '#d6453b';
     for (let k = 0; k < 6; k++) ctx.fillRect(x + 25 + k, y + 3 + Math.round(Math.sin(t * 0.2 + k * 0.8) * 0.8) + (k > 3 ? flap : 0), 1, 2);
     if (!a.crownTaken) ctx.drawImage(this.items.crown, x + 6, y - 22 + Math.round(Math.sin(t * 0.05)));
+  }
+
+  /** NPCs (not the Echo, which the scene draws from the climber's own sprite). */
+  drawNpcs(ctx: CanvasRenderingContext2D, game: Game, camY: number, t: number): void {
+    for (const n of game.npcs) {
+      if (n.gone) continue;
+      const def = game.npcDefs[n.id];
+      if (!def || def.behavior === 'echo') continue;
+      const art = this.npc[def.sprite];
+      if (!art) continue;
+      const y = n.y - art.h + 1 - camY;
+      if (y > VIEW_H || y + art.h < 0) continue;
+      const frame = def.behavior === 'king' ? 0 : (t + n.x * 7) % 90 < 45 ? 0 : 1;
+      const bob = def.behavior === 'crow' && (t + n.x) % 150 < 6 ? -1 : 0;
+      ctx.drawImage((n.facing > 0 ? art.r : art.l)[frame], Math.round(n.x - art.w / 2), y + bob);
+    }
+    for (const st of game.lifts) {
+      const y = st.y - this.lift.height + 1 - camY;
+      if (y > VIEW_H || y < -40) continue;
+      ctx.drawImage(this.lift, st.x - 6, y);
+      st.bucket.slice(0, 2).forEach((it, i) => ctx.drawImage(this.items[it.id], st.x - 8 + i * 5, y + 9));
+    }
   }
 
   /** Little sparkles that should glow through darkness (drawn after lighting). */

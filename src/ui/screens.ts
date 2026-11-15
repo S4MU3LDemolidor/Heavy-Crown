@@ -94,12 +94,13 @@ export interface Options {
   music: number;
   sfx: number;
   alwaysMeter: boolean;
+  scares: boolean;
 }
 
 export function drawOptions(ctx: CanvasRenderingContext2D, o: Options, sel: number, fullscreen: boolean, t: number): void {
   dimScreen(ctx, 0.7);
   const w = 220;
-  const h = 120;
+  const h = 136;
   const x = Math.round((VIEW_W - w) / 2);
   const y = Math.round((VIEW_H - h) / 2);
   drawPanel(ctx, x, y, w, h);
@@ -109,6 +110,7 @@ export function drawOptions(ctx: CanvasRenderingContext2D, o: Options, sel: numb
     ['Effects', bar(o.sfx)],
     ['Fullscreen', fullscreen ? 'On' : 'Off'],
     ['Pack bar', o.alwaysMeter ? 'Always' : 'Only when weight changes'],
+    ['Scares', o.scares ? 'On' : 'Off'],
     ['Back', ''],
   ];
   rows.forEach(([label, value], i) => {

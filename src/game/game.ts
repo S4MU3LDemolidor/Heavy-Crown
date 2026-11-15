@@ -1,5 +1,7 @@
 import { ITEMS, totalGold, totalWeight, type ItemId } from '../content/items';
+import { NPCS } from '../content/npcs';
 import { NOTES } from '../content/story';
+import { DialogueRunner, type Cond, type Effect, type LiftStation, type NpcDef, type NpcInstance, type ScareCond, type ScareInstance, type ScareKind, type StoryHost } from './story';
 import { makeBody, moveY, type Body } from './body';
 import type { World } from './level';
 import { Player, type LadderHit, type PlayerInput, type PlayerWorld } from './player';
@@ -115,7 +117,17 @@ export type GameEvent =
   | { type: 'break'; x: number; y: number }
   | { type: 'bell'; x: number; y: number; big: boolean }
   | { type: 'relic'; item: ItemId; x: number; y: number }
-  | { type: 'crown'; x: number; y: number };
+  | { type: 'crown'; x: number; y: number }
+  | { type: 'talk'; npc: string }
+  | { type: 'liftMenu'; station: string }
+  | { type: 'liftSent'; item: ItemId; x: number; y: number }
+  | { type: 'liftTaken'; item: ItemId; x: number; y: number }
+  | { type: 'favourMenu' }
+  | { type: 'paid'; gold: number }
+  | { type: 'scare'; id: string; kind: ScareKind; x: number; y: number }
+  | { type: 'whisper'; x: number; y: number }
+  | { type: 'echoMove'; x: number; y: number }
+  | { type: 'kingDelivered'; item: ItemId };
 
 export interface Interaction {
   label: string;
@@ -146,13 +158,22 @@ export interface SaveData {
   cracked?: string[];
   altar?: ItemId[];
   levelsSeen?: number[];
+  flags?: string[];
+  npcs?: { key: string; x: number; gone: boolean; facing: 1 | -1 }[];
+  scares?: string[];
+  lifts?: Record<string, { uid: number; id: ItemId }[]>;
 }
+
+/** Bucket lift price in gold (spec 5.3). */
+export const LIFT_PRICE = 10;
+/** Reach for talking to NPCs and using lift stations. */
+const TALK_REACH = 16;
 
 const rectsOverlap = (ax: number, ay: number, aw: number, ah: number, bx: number, by: number, bw: number, bh: number) =>
   ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah;
 
 /** The whole simulated game: player, items, gates, ropes, notes. No DOM. */
-export class Game implements PlayerWorld {
+export class Game implements PlayerWorld, StoryHost {
   readonly world: World;
   player: Player;
   items: WorldItem[] = [];
@@ -169,6 +190,15 @@ export class Game implements PlayerWorld {
   altar: Altar | null = null;
   /** Iron rings for the Grappling Hook, centre points in world pixels. */
   rings: { x: number; y: number }[] = [];
+  flags = new Set<string>();
+  npcs: NpcInstance[] = [];
+  lifts: LiftStation[] = [];
+  scares: ScareInstance[] = [];
+  /** Options can turn scares off. */
+  scaresEnabled = true;
+  readonly npcDefs: Record<string, NpcDef>;
+  /** Frames the climber has stood still (for 'still' scares). */
+  private stillFrames = 0;
   notesRead = new Set<string>();
   discovered = new Set<number>();
   /** Level ids whose title card has been shown. */
@@ -178,8 +208,9 @@ export class Game implements PlayerWorld {
   private nextUid = 1;
   private order = 0;
 
-  constructor(world: World) {
+  constructor(world: World, npcDefs: Record<string, NpcDef> = NPCS) {
     this.world = world;
+    this.npcDefs = npcDefs;
     this.player = new Player(world.start.x, world.start.y);
     this.buildObjects();
     for (const s of world.spawns) {
@@ -207,6 +238,16 @@ export class Game implements PlayerWorld {
       if (s.entry.object === 'plate') this.plates.push({ id: `${s.tx},${s.ty}`, tx: s.tx, ty: s.ty, link: String(props.link), need: Number(props.need ?? 3), pressed: false });
       if (s.entry.object === 'altar') this.altar = { tx: s.tx, ty: s.ty, placed: [], crownTaken: false };
       if (s.entry.object === 'ring') this.rings.push({ x: s.tx * TILE + TILE / 2, y: s.ty * TILE + TILE / 2 });
+      if (s.entry.object === 'npc') {
+        const feet = this.floorBelow(s.tx, s.ty);
+        this.npcs.push({ key: `${props.id}@${s.tx},${s.ty}`, id: String(props.id), scene: String(props.scene ?? ''), x: s.tx * TILE + TILE / 2, y: feet, facing: -1, gone: false, order: Number(props.order ?? 0), timer: 0 });
+      }
+      if (s.entry.object === 'lift') this.lifts.push({ key: `${s.tx},${s.ty}`, net: String(props.net), order: Number(props.order), x: s.tx * TILE + TILE / 2, y: this.floorBelow(s.tx, s.ty), bucket: [] });
+      if (s.entry.object === 'scare') {
+        const w = Number(props.w ?? 6) * TILE;
+        const h = Number(props.h ?? 5) * TILE;
+        this.scares.push({ id: String(props.id), kind: String(props.kind) as ScareKind, cond: String(props.cond ?? 'none') as ScareCond, x: s.tx * TILE + TILE / 2 - w / 2, y: (s.ty + 1) * TILE - h, w, h, fired: false });
+      }
     }
     this.planks = this.groupRuns('plank').map(({ tx0, tx1, ty }) => ({ id: `${tx0},${ty}`, tx0, tx1, ty, down: false, timer: 0, heavy: 0 }));
     this.cracked = this.groupRegions('cracked').map((cells) => ({ id: `${cells[0][0]},${cells[0][1]}`, cells, broken: false }));
@@ -224,6 +265,13 @@ export class Game implements PlayerWorld {
       while (gateCells.has(`${cell.tx},${ty1 + 1}`)) ty1++;
       this.gates.push({ id: `${cell.tx},${cell.ty}`, tx: cell.tx, ty0: cell.ty, ty1, opens: cell.opens, link: cell.link, open: false, anim: 0 });
     }
+  }
+
+  /** World y of the first solid floor at or below tile (tx, ty). */
+  private floorBelow(tx: number, ty: number): number {
+    let y = ty;
+    while (y < this.world.grid.rows && !this.world.grid.isSolid(tx, y + 1)) y++;
+    return (y + 1) * TILE;
   }
 
   private cellsOf(object: string): Set<string> {
@@ -430,6 +478,7 @@ export class Game implements PlayerWorld {
     this.stepPlates();
     for (const g of this.gates) g.anim = g.open ? Math.min(40, g.anim + 1) : Math.max(0, g.anim - 3);
     for (const b of this.bells) if (b.swing > 0) b.swing--;
+    this.stepStory();
     for (const e of this.player.events) {
       if (e.type !== 'land' && e.type !== 'bonkWall' && e.type !== 'bonkCeiling') continue;
       const pb = this.player.body;
@@ -573,6 +622,27 @@ export class Game implements PlayerWorld {
         }
       }
     }
+    if (p.state === 'ground') {
+      for (const n of this.npcs) {
+        const def = this.npcDefs[n.id];
+        if (n.gone || !def || def.behavior === 'hollow' || def.behavior === 'echo') continue;
+        if (Math.abs(cx - n.x) > TALK_REACH || Math.abs(p.feetY - n.y) > TILE * 2) continue;
+        if (!DialogueRunner.pick(this, def, n)) continue;
+        return { label: `Talk to ${def.name}`, x: n.x, y: n.y - 28, run: () => this.events.push({ type: 'talk', npc: n.key }) };
+      }
+      for (const st of this.lifts) {
+        if (Math.abs(cx - st.x) > TALK_REACH || Math.abs(p.feetY - st.y) > TILE * 2) continue;
+        const top = st.y - 26;
+        if (st.bucket.length) {
+          const it = st.bucket[0];
+          return { label: `Take ${ITEMS[it.id].name} from the bucket`, x: st.x, y: top, run: () => this.liftTake(st) };
+        }
+        if (!this.liftNext(st)) continue;
+        if (!this.carried.length) continue;
+        if (this.gold < LIFT_PRICE) return { label: `Bucket lift: ${LIFT_PRICE} gold to send something up`, x: st.x, y: top, run: () => undefined };
+        return { label: `Send something up (${LIFT_PRICE} gold)`, x: st.x, y: top, run: () => this.events.push({ type: 'liftMenu', station: st.key }) };
+      }
+    }
     for (const hk of this.hooks) {
       const hx = hk.tx * TILE + 4;
       const hy = hk.ty * TILE + 4;
@@ -653,6 +723,162 @@ export class Game implements PlayerWorld {
     this.events.push({ type: 'crown', x: this.altar.tx * TILE + 4, y: this.altar.ty * TILE });
   }
 
+  // ---------- story: conditions, effects, gold, lifts, NPC behaviour, scares ----------
+
+  check(c: Cond | undefined): boolean {
+    if (!c) return true;
+    if (c.flag && !this.flags.has(c.flag)) return false;
+    if (c.notFlag && this.flags.has(c.notFlag)) return false;
+    if (c.has && !this.has(c.has)) return false;
+    if (c.lacks && this.has(c.lacks)) return false;
+    if (c.gold !== undefined && this.gold < c.gold) return false;
+    if (c.minStones !== undefined && this.stones < c.minStones) return false;
+    if (c.maxStones !== undefined && this.stones > c.maxStones) return false;
+    if (c.relic && !this.carried.some((x) => ITEMS[x.id].kind === 'relic')) return false;
+    return true;
+  }
+
+  /** Set by effects that need a picker; the UI opens it and clears this. */
+  pendingMenu: { kind: 'lift'; station: string } | { kind: 'favour' } | null = null;
+
+  apply(effects: Effect[] | undefined, npc: NpcInstance): void {
+    for (const e of effects ?? []) {
+      if ('set' in e) this.flags.add(e.set);
+      else if ('give' in e) {
+        this.carried.push({ uid: this.nextUid++, id: e.give });
+        this.selected = this.carried.length - 1;
+        this.updateLoadout();
+        this.events.push({ type: 'pickup', item: e.give, x: npc.x, y: npc.y - 12 });
+      } else if ('take' in e) {
+        const i = this.carried.findIndex((c) => c.id === e.take);
+        if (i >= 0) this.carried.splice(i, 1);
+        this.updateLoadout();
+      } else if ('pay' in e) this.payGold(e.pay);
+      else if ('lift' in e) {
+        const st = this.lifts.reduce<LiftStation | null>((best, l) => (!best || Math.abs(l.x - npc.x) + Math.abs(l.y - npc.y) < Math.abs(best.x - npc.x) + Math.abs(best.y - npc.y) ? l : best), null);
+        if (st) this.pendingMenu = { kind: 'lift', station: st.key };
+      } else if ('favour' in e) this.pendingMenu = { kind: 'favour' };
+      else if ('leave' in e) npc.gone = true;
+    }
+  }
+
+  /** Pays `price` gold with carried treasure, cheapest first. No change is given. */
+  payGold(price: number): boolean {
+    if (this.gold < price) return false;
+    const treasure = this.carried.filter((c) => (ITEMS[c.id].gold ?? 0) > 0).sort((a, b) => (ITEMS[a.id].gold ?? 0) - (ITEMS[b.id].gold ?? 0));
+    let paid = 0;
+    for (const t of treasure) {
+      if (paid >= price) break;
+      paid += ITEMS[t.id].gold ?? 0;
+      this.carried = this.carried.filter((c) => c !== t);
+    }
+    this.updateLoadout();
+    this.events.push({ type: 'paid', gold: paid });
+    return true;
+  }
+
+  private liftNext(st: LiftStation): LiftStation | null {
+    return this.lifts.filter((l) => l.net === st.net && l.order > st.order).sort((a, b) => a.order - b.order)[0] ?? null;
+  }
+
+  /** Sends a carried item up to the next station of `stationKey`'s lift network, for LIFT_PRICE gold. */
+  liftSend(stationKey: string, carriedIndex: number): boolean {
+    const st = this.lifts.find((l) => l.key === stationKey);
+    const next = st && this.liftNext(st);
+    const item = this.carried[carriedIndex];
+    if (!st || !next || !item) return false;
+    this.carried.splice(carriedIndex, 1);
+    if (!this.payGold(LIFT_PRICE)) {
+      this.carried.splice(carriedIndex, 0, item);
+      this.updateLoadout();
+      return false;
+    }
+    next.bucket.push(item);
+    this.updateLoadout();
+    this.events.push({ type: 'liftSent', item: item.id, x: st.x, y: st.y });
+    return true;
+  }
+
+  private liftTake(st: LiftStation): void {
+    const it = st.bucket.shift();
+    if (!it) return;
+    this.carried.push(it);
+    this.selected = this.carried.length - 1;
+    this.updateLoadout();
+    this.events.push({ type: 'liftTaken', item: it.id, x: st.x, y: st.y });
+  }
+
+  /** The Old King takes a carried relic and will set it on the altar (spec 5.6). */
+  kingFavour(carriedIndex: number): boolean {
+    const it = this.carried[carriedIndex];
+    if (!it || ITEMS[it.id].kind !== 'relic' || [...this.flags].some((f) => f.startsWith('king:'))) return false;
+    this.carried.splice(carriedIndex, 1);
+    this.flags.add(`king:${it.id}`);
+    this.updateLoadout();
+    return true;
+  }
+
+  npcAt(key: string): NpcInstance | undefined {
+    return this.npcs.find((n) => n.key === key);
+  }
+
+  private stepStory(): void {
+    const p = this.player;
+    const cx = p.body.x + p.body.w / 2;
+    this.stillFrames = p.state === 'ground' && p.vx === 0 ? this.stillFrames + 1 : 0;
+    for (const n of this.npcs) {
+      if (n.gone) continue;
+      const def = this.npcDefs[n.id];
+      if (!def) continue;
+      const dx = cx - n.x;
+      const near = Math.abs(dx) < 120 && Math.abs(p.feetY - n.y) < 40;
+      if (def.behavior !== 'hollow' && near) n.facing = dx < 0 ? -1 : 1;
+      if (def.behavior === 'hollow' && near) {
+        // they move only while you look away, and turn to face you
+        n.facing = dx < 0 ? -1 : 1;
+        const lookingAway = Math.sign(dx) === p.facing;
+        if (lookingAway && ++n.timer >= 30) {
+          n.timer = 0;
+          n.x += Math.sign(dx) * 4;
+        }
+        if (Math.abs(cx - n.x) < 12) {
+          n.gone = true;
+          this.events.push({ type: 'whisper', x: n.x, y: n.y - 20 });
+          if (this.scaresEnabled) this.events.push({ type: 'scare', id: n.key, kind: 'hollow', x: n.x, y: n.y });
+        }
+      }
+      if (def.behavior === 'echo') {
+        const first = this.npcs.filter((e) => e.id === n.id && !e.gone && e.scene === n.scene).sort((a, b) => a.order - b.order)[0];
+        if (first === n && Math.hypot(dx, p.feetY - n.y) < 26) {
+          n.gone = true;
+          this.events.push({ type: 'echoMove', x: n.x, y: n.y });
+        }
+      }
+    }
+    if (this.scaresEnabled) {
+      const b = p.body;
+      for (const s of this.scares) {
+        if (s.fired) continue;
+        if (!(b.x < s.x + s.w && s.x < b.x + b.w && b.y < s.y + s.h && s.y < b.y + b.h)) continue;
+        if (s.cond === 'lantern' && !this.has('lantern')) continue;
+        if (s.cond === 'still' && this.stillFrames < 120) continue;
+        if (s.cond === 'faceAway' && Math.sign(s.x + s.w / 2 - cx) === p.facing) continue;
+        s.fired = true;
+        this.events.push({ type: 'scare', id: s.id, kind: s.kind, x: s.x + s.w / 2, y: s.y + s.h });
+      }
+    }
+    // the Old King keeps his word
+    if (this.altar) {
+      const kf = [...this.flags].find((f) => f.startsWith('king:'));
+      if (kf && !this.flags.has('kingDelivered') && Math.floor(p.centerY / SCREEN_H) === Math.floor((this.altar.ty * TILE) / SCREEN_H)) {
+        const item = kf.slice(5) as ItemId;
+        if (!this.altar.placed.includes(item)) this.altar.placed.push(item);
+        this.flags.add('kingDelivered');
+        this.events.push({ type: 'kingDelivered', item });
+      }
+    }
+  }
+
   pickUp(it: WorldItem): void {
     this.items = this.items.filter((x) => x !== it);
     this.carried.push({ uid: it.uid, id: it.id });
@@ -706,6 +932,10 @@ export class Game implements PlayerWorld {
       cracked: this.cracked.filter((c) => c.broken).map((c) => c.id),
       altar: this.altar ? [...this.altar.placed] : [],
       levelsSeen: [...this.levelsSeen],
+      flags: [...this.flags],
+      npcs: this.npcs.map((n) => ({ key: n.key, x: n.x, gone: n.gone, facing: n.facing })),
+      scares: this.scares.filter((s) => s.fired).map((s) => s.id),
+      lifts: Object.fromEntries(this.lifts.filter((l) => l.bucket.length).map((l) => [l.key, l.bucket.map((b) => ({ ...b }))])),
     };
   }
 
@@ -728,6 +958,13 @@ export class Game implements PlayerWorld {
     for (const c of this.cracked) c.broken = (d.cracked ?? []).includes(c.id);
     if (this.altar) this.altar.placed = [...(d.altar ?? [])];
     this.levelsSeen = new Set(d.levelsSeen ?? []);
+    this.flags = new Set(d.flags ?? []);
+    for (const s of d.npcs ?? []) {
+      const n = this.npcs.find((x) => x.key === s.key);
+      if (n) Object.assign(n, { x: s.x, gone: s.gone, facing: s.facing });
+    }
+    for (const s of this.scares) s.fired = (d.scares ?? []).includes(s.id);
+    for (const l of this.lifts) l.bucket = (d.lifts?.[l.key] ?? []).map((b) => ({ ...b }));
     this.updateLoadout();
     this.events = [];
   }

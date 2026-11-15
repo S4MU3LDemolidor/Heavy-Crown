@@ -75,3 +75,20 @@ if (which === 'all' || which === 'items') {
   savePng(sheet, 'previews/items.png', 6, '#4a5260');
   console.log('previews/items.png');
 }
+
+if (which === 'all' || which === 'npcs') {
+  const { npcSprites, scareSprites, liftSprite } = await import('../src/art/npcs');
+  const npcs = npcSprites();
+  const scares = scareSprites();
+  const all = [...Object.values(npcs).map((a) => a.frames[0]), ...Object.values(scares), liftSprite()];
+  const w = all.reduce((s, b) => s + b.w + 4, 4);
+  const h = Math.max(...all.map((b) => b.h)) + 8;
+  const sheet = new PixelBuffer(w, h);
+  let x = 4;
+  for (const b of all) {
+    sheet.blit(b, x, h - 4 - b.h);
+    x += b.w + 4;
+  }
+  savePng(sheet, 'previews/npcs.png', 6, '#4a4458');
+  console.log('previews/npcs.png');
+}

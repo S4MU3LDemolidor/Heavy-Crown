@@ -145,6 +145,7 @@ export class Scene {
     const p = game.player;
     const theme = THEMES[this.world.levels[this.world.bandLevel[Math.max(0, Math.min(this.world.screenCount - 1, Math.floor(p.centerY / SCREEN_H)))]].theme];
     this.effects.spawn(game.events, p.events, p, theme, game.waterAt(p.body.x, p.body.y, p.body.w, p.body.h + 1));
+    for (const e of game.events) if (e.type === 'scare') this.scare(e.kind, e.x, e.y, p);
     this.effects.update();
     if (this.fadeK < 1) this.fadeK = Math.min(1, this.fadeK + 1 / 45);
   }
@@ -226,6 +227,8 @@ export class Scene {
     this.drawWater(ctx, camY, t);
     this.objects.drawBack(ctx, game, camY, t);
     this.objects.drawItems(ctx, game, camY);
+    this.objects.drawNpcs(ctx, game, camY, t);
+    this.drawEchoes(ctx, game, camY, t);
     const carried = game.carried.map((c) => c.id);
     if (!this.hideClimber) this.drawClimber(ctx, player, camY, carried);
     this.drawWind(ctx, game, camY);
@@ -264,7 +267,71 @@ export class Scene {
     this.ambient.drawParticles(ctx, theme, camera.band, camY, game.windAt(0, camY + VIEW_H / 2));
     this.objects.drawGlints(ctx, game, camY, t);
     this.effects.drawStun(ctx, player, camY, t);
+    this.drawScare(ctx, camY);
     ctx.drawImage(this.vignette, 0, 0);
+  }
+
+  /** Maren's Echo: the climber's own sprite, pale and flickering, with her red scarf. */
+  private drawEchoes(ctx: CanvasRenderingContext2D, game: Game, camY: number, t: number): void {
+    const shown = new Set<string>();
+    for (const n of [...game.npcs].sort((a, b) => a.order - b.order)) {
+      const def = game.npcDefs[n.id];
+      if (n.gone || def?.behavior !== 'echo' || shown.has(n.scene)) continue;
+      shown.add(n.scene);
+      const info = this.climber.frames[1].idle0;
+      const x = Math.round(n.x) - (n.facing > 0 ? FEET_X : FRAME_W - 1 - FEET_X);
+      const y = n.y - 1 - FEET_Y - camY + Math.round(Math.sin(t * 0.05) * 1.5);
+      if (y > VIEW_H || y < -FRAME_H) continue;
+      ctx.save();
+      ctx.globalAlpha = 0.45 + Math.sin(t * 0.13) * 0.12 + (t % 97 < 3 ? -0.3 : 0);
+      ctx.filter = 'grayscale(1) brightness(1.9) contrast(0.8)';
+      ctx.drawImage(n.facing > 0 ? this.sheetR : this.sheetL, info.sx, info.sy, FRAME_W, FRAME_H, x, y, FRAME_W, FRAME_H);
+      ctx.restore();
+      ctx.fillStyle = 'rgba(214, 69, 59, 0.8)';
+      for (let k = 0; k < 5; k++) ctx.fillRect(Math.round(n.x - n.facing * (3 + k)), y + 15 + Math.round(Math.sin(t * 0.2 + k) * 1.2), 1, 2);
+    }
+  }
+
+  /** A scare: the sprite appears suddenly, a one-frame flash, a shake. */
+  private scareFx: { sprite: string; x: number; y: number; t: number } | null = null;
+
+  scare(kind: string, x: number, y: number, player: Player): void {
+    const sprite = kind === 'hollow' || kind === 'figure' ? 'figure' : kind === 'echo' ? 'face' : kind;
+    let sx = x;
+    let sy = y;
+    if (kind === 'figure' || kind === 'hollow') {
+      sx = player.body.x + player.body.w / 2 - player.facing * 20;
+      sy = player.feetY;
+    }
+    if (kind === 'face') {
+      sx = player.body.x + player.body.w / 2 + player.facing * 54;
+      sy = player.feetY - 6;
+    }
+    if (kind === 'echo') {
+      sx = player.body.x + player.body.w / 2 + player.facing * 16;
+      sy = player.feetY - 2;
+    }
+    if (kind !== 'breath') this.scareFx = { sprite, x: sx, y: sy, t: 0 };
+    this.effects.shakeT = 12;
+    this.effects.shakeK = 2;
+  }
+
+  private drawScare(ctx: CanvasRenderingContext2D, camY: number): void {
+    const s = this.scareFx;
+    if (!s) return;
+    s.t++;
+    const img = this.objects.scare[s.sprite];
+    if (img) {
+      ctx.save();
+      ctx.globalAlpha = s.t < 30 ? 1 : Math.max(0, 1 - (s.t - 30) / 10);
+      ctx.drawImage(img, Math.round(s.x - img.width / 2), Math.round(s.y - img.height - camY));
+      ctx.restore();
+    }
+    if (s.t <= 2) {
+      ctx.fillStyle = `rgba(255, 255, 255, ${s.t === 1 ? 0.7 : 0.3})`;
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    }
+    if (s.t > 40) this.scareFx = null;
   }
 
   /** Moving highlights on water surfaces. */

@@ -266,6 +266,28 @@ export class Audio {
     this.noise(0.5, { vol: 0.08, freq: 600, type: 'bandpass', q: 1, sweep: 0.4, attack: 0.05 });
   }
 
+  /** One syllable of an NPC's voice. */
+  blip(pitch: number, wave: OscillatorType): void {
+    this.tone(pitch * (0.9 + Math.random() * 0.2), 0.05, { wave, vol: 0.035 });
+  }
+
+  /** The Hollow Ones' whisper. */
+  whisper(): void {
+    for (let i = 0; i < 3; i++) this.noise(0.5, { vol: 0.05, freq: 900 + i * 700, type: 'bandpass', q: 6, sweep: 1.6 - i * 0.3, attack: 0.15, delay: i * 0.18 });
+  }
+
+  /** A scare sting: a dissonant stab over a noise burst and a low boom. */
+  sting(): void {
+    for (const f of [311, 330, 466, 622]) this.tone(f, 0.9, { wave: 'sawtooth', vol: 0.05, attack: 0.003 });
+    this.noise(0.4, { vol: 0.3, freq: 3000, type: 'highpass', sweep: 0.3 });
+    this.tone(55, 1.2, { wave: 'sine', vol: 0.35, slide: 0.5 });
+  }
+
+  /** A soft chime when Maren's Echo moves on. */
+  echo(): void {
+    [0, 7, 12].forEach((s, i) => this.tone(523 * Math.pow(2, s / 12), 1.6, { wave: 'sine', vol: 0.03, attack: 0.1, delay: i * 0.15 }));
+  }
+
   clawScrape(): void {
     this.noise(0.09, { vol: 0.07, freq: 2600, type: 'bandpass', q: 3, sweep: 0.6 });
     this.tone(1400 + Math.random() * 500, 0.04, { wave: 'square', vol: 0.012 });
