@@ -1,5 +1,6 @@
 import { LEVELS } from './content/levels';
 import { TEST_TOWER } from './content/levels/test-tower';
+import { Audio } from './engine/audio';
 import { Input } from './engine/input';
 import { startLoop } from './engine/loop';
 import { Renderer } from './engine/renderer';
@@ -18,6 +19,8 @@ const GREYBOX = params.has('test');
 if (params.has('new')) clearSave();
 
 const canvas = document.getElementById('screen') as HTMLCanvasElement;
+const audio = new Audio();
+for (const ev of ['keydown', 'pointerdown', 'gamepadconnected']) addEventListener(ev, () => audio.unlock());
 const renderer = new Renderer(canvas);
 const input = new Input(window);
 const world = buildWorld(GREYBOX ? [TEST_TOWER] : LEVELS);
@@ -39,8 +42,61 @@ function save(): void {
   if (!GREYBOX) writeSave(game.save());
 }
 
+let walked = 0;
+let lastGust = 'calm';
+
+/** Turns this step's events into sound. */
+function playSounds(): void {
+  const p = game.player;
+  const tier = loadTier(game.stones);
+  for (const e of p.events) {
+    if (e.type === 'chargeStart') audio.chargeStart();
+    if (e.type === 'jump') audio.jump(e.charge);
+    if (e.type === 'land') {
+      if (game.waterAt(p.body.x, p.body.y, p.body.w, p.body.h + 1)) audio.splash();
+      else audio.land(tier, e.hard);
+    }
+    if (e.type === 'bonkWall' || e.type === 'bonkCeiling') audio.bonk();
+    if (e.type === 'grab' || e.type === 'climbStep') audio.creak();
+  }
+  if (p.state !== 'charge') audio.chargeStop();
+  if (p.state === 'ground' && p.vx !== 0) {
+    walked += Math.abs(p.vx);
+    if (walked > 11 - tier) {
+      walked = 0;
+      audio.step(tier);
+    }
+  }
+  for (const e of game.events) {
+    switch (e.type) {
+      case 'pickup': audio.pickup(); break;
+      case 'drop': audio.drop(); break;
+      case 'unlock': audio.keyTurn(); break;
+      case 'locked': audio.locked(); break;
+      case 'gateMove': audio.gate(); break;
+      case 'break': audio.breakStone(); break;
+      case 'rope': audio.rope(); break;
+      case 'read': audio.paper(); break;
+      case 'bell': audio.bell(e.big); break;
+      case 'plank': audio.plank(e.down); break;
+      case 'plate': audio.plate(e.pressed); break;
+      case 'relic': audio.relic(); break;
+      case 'crown': audio.crown(); break;
+    }
+  }
+  const windHere = world.bandWind[camera.band] ?? 0;
+  const g = game.gust().phase;
+  if (windHere !== 0 && g !== lastGust && g !== 'calm') audio.gust(g === 'gust');
+  lastGust = g;
+  const theme = world.levels[world.bandLevel[camera.band]].theme;
+  audio.setMusic(theme);
+  audio.setAmbience(theme);
+  audio.tick();
+}
+
 function step(left: boolean, right: boolean, jump: boolean, up = false, down = false): void {
   game.step({ left, right, jump, up, down });
+  playSounds();
   for (const e of game.events) if (e.type === 'weight') meterT = 180;
   for (const e of game.player.events) if (e.type === 'land') save();
   const before = camera.band;
@@ -73,6 +129,7 @@ function update(): void {
         if (it) {
           it.run();
           scene.onStep(game);
+          playSounds();
           for (const e of game.events) if (e.type === 'read') mode = { kind: 'note', id: e.note };
           for (const e of game.events) if (e.type === 'weight') meterT = 180;
           save();
@@ -201,5 +258,6 @@ if (import.meta.env.DEV) {
     get game() {
       return game;
     },
+    audio,
   };
 }
