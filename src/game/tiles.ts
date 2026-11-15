@@ -3,9 +3,14 @@ import { TILE } from './tuning';
 export const Tile = {
   Empty: 0,
   Solid: 1,
+  Water: 2,
+  Ice: 3,
+  Ladder: 4,
 } as const;
 
 export type TileId = (typeof Tile)[keyof typeof Tile];
+
+const SOLID: boolean[] = [false, true, false, true, false];
 
 /** Anything bodies can collide with. */
 export interface CollisionWorld {
@@ -35,8 +40,12 @@ export class TileGrid implements CollisionWorld {
     return this.cells[ty * this.cols + tx] as TileId;
   }
 
+  set(tx: number, ty: number, id: TileId): void {
+    if (tx >= 0 && tx < this.cols && ty >= 0 && ty < this.rows) this.cells[ty * this.cols + tx] = id;
+  }
+
   isSolid(tx: number, ty: number): boolean {
-    return this.get(tx, ty) === Tile.Solid;
+    return SOLID[this.get(tx, ty)];
   }
 
   solidRect(x: number, y: number, w: number, h: number): boolean {
@@ -48,6 +57,18 @@ export class TileGrid implements CollisionWorld {
       for (let tx = x0; tx <= x1; tx++) {
         if (this.isSolid(tx, ty)) return true;
       }
+    }
+    return false;
+  }
+
+  /** True if any tile of type `id` overlaps the rectangle. */
+  anyIn(x: number, y: number, w: number, h: number, id: TileId): boolean {
+    const x0 = Math.floor(x / TILE);
+    const x1 = Math.floor((x + w - 1) / TILE);
+    const y0 = Math.floor(y / TILE);
+    const y1 = Math.floor((y + h - 1) / TILE);
+    for (let ty = y0; ty <= y1; ty++) {
+      for (let tx = x0; tx <= x1; tx++) if (this.get(tx, ty) === id) return true;
     }
     return false;
   }

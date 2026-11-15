@@ -1,3 +1,4 @@
+import type { LevelDef } from '../../game/level';
 import { SCREEN_COLS, SCREEN_ROWS } from '../../game/tuning';
 
 type Rect = [x: number, y: number, w: number, h: number];
@@ -16,32 +17,32 @@ function buildScreen(solids: Rect[], start?: [x: number, y: number]): string[] {
   return g.map((row) => row.join(''));
 }
 
-/**
- * Grey two-screen playground for tuning the jump (top screen first).
- * Bottom screen: a staircase of ledges 4–7 tiles apart, a low ceiling block to bonk,
- * and a pillar to bounce off. Top screen: ledges zig-zagging left, then a long shelf at the top.
- * The top screen has no floor, so a miss there falls back to the bottom screen.
- */
-export const TEST_TOWER: string[][] = [
-  buildScreen([
-    [40, 30, 8, 1],
-    [26, 25, 8, 1],
-    [12, 20, 8, 1],
-    [2, 14, 6, 1],
-    [14, 8, 10, 1],
-    [30, 3, 28, 1],
-  ]),
-  buildScreen(
-    [
-      [1, 31, 58, 3], // floor
-      [6, 27, 6, 1],
-      [15, 22, 6, 1],
-      [26, 16, 6, 1],
-      [38, 9, 6, 1],
-      [50, 3, 8, 1],
-      [4, 19, 8, 2], // low ceiling block
-      [33, 23, 2, 8], // pillar
-    ],
-    [3, 30],
-  ),
-];
+/** Grey two-screen playground for tuning the jump (debug only). */
+export const TEST_TOWER: LevelDef = {
+  id: 0,
+  theme: 'overgrown',
+  legend: {},
+  screens: [
+    buildScreen([
+      [40, 30, 8, 1],
+      [26, 25, 8, 1],
+      [12, 20, 8, 1],
+      [2, 14, 6, 1],
+      [14, 8, 10, 1],
+      [30, 3, 28, 1],
+    ]),
+    buildScreen(
+      [
+        [1, 31, 58, 3], // floor
+        [6, 27, 6, 1],
+        [15, 22, 6, 1],
+        [26, 16, 6, 1],
+        [38, 9, 6, 1],
+        [50, 3, 8, 1],
+        [4, 19, 8, 2], // low ceiling block
+        [33, 23, 2, 8], // pillar
+      ],
+      [3, 30],
+    ),
+  ],
+};
