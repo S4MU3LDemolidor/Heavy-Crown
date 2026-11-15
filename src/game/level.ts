@@ -61,7 +61,7 @@ const TILE_CHARS: Record<string, { tile: TileId; open?: boolean }> = {
 };
 
 /** Builds the tower from levels listed bottom to top. */
-export function buildWorld(levels: LevelDef[]): World {
+export function buildWorld(levels: LevelDef[], opts: { requireStart?: boolean } = {}): World {
   const bands: { level: number; rows: string[] }[] = [];
   for (let li = levels.length - 1; li >= 0; li--) {
     for (const rows of levels[li].screens) bands.push({ level: li, rows });
@@ -103,7 +103,10 @@ export function buildWorld(levels: LevelDef[]): World {
       }
     });
   });
-  if (!start) throw new Error('no @ start marker');
+  if (!start) {
+    if (opts.requireStart !== false) throw new Error('no @ start marker');
+    start = { x: 0, y: 0 };
+  }
   const bandWind = bands.map((band, bi) => {
     const level = levels[band.level];
     const first = bands.findIndex((b) => b.level === band.level);

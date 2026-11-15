@@ -41,16 +41,13 @@ s1.put(4, 15, 'r')                   # rope coil
 s1.fill(9, 11, 15, 11, '#')          # H4
 s1.fill(2, 6, 6, 6, '#')             # key ledge
 s1.put(4, 5, 'k')
-s1.fill(24, 13, 31, 13, '#')         # H5 (across the channel)
+s1.fill(23, 14, 30, 14, '#')         # H5 (across the channel)
 s1.fill(37, 12, 57, 12, '#')         # gate corridor floor
-s1.fill(37, 8, 51, 8, '#')           # corridor ceiling
-s1.fill(37, 9, 37, 9, '#')
+s1.fill(37, 3, 51, 8, '#')           # solid stonework above the corridor (its top is the exit ledge)
 s1.fill(46, 9, 46, 11, 'G')          # iron gate
 s1.fill(55, 8, 57, 8, '#')           # tall room steps beyond the gate
 s1.fill(52, 4, 54, 4, '#')
-s1.fill(44, 2, 51, 2, '#')           # exit ledge
-s1.fill(33, 4, 41, 4, '#')           # rope-hook ledge over the hall
-s1.put(33, 3, 'h')                   # rope hook (ladder hangs down col 33)
+s1.put(37, 2, 'h')                   # rope hook (ladder hangs down col 36 to G2)
 
 # ---------- screen 2: the collapsing arch (top of level I) ----------
 s2 = Screen('.')
@@ -59,7 +56,7 @@ s2.fill(58, 0, 59, 33, '#')
 s2.fill(2, 14, 7, 33, '#')           # left arch pier
 s2.fill(52, 20, 57, 33, '#')         # right pier (caps the tall room below)
 s2.fill(44, 26, 51, 33, ' ')         # ruined room by the right pier
-s2.fill(36, 30, 42, 30, '#')         # S2a
+s2.fill(36, 31, 42, 31, '#')         # S2a
 s2.fill(46, 25, 50, 25, '#')         # S2b
 s2.fill(39, 15, 44, 15, '#')         # S2d
 s2.fill(25, 12, 30, 12, '#')         # S2e (the long jump)

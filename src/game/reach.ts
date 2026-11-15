@@ -1,5 +1,6 @@
-import { Player, type PlayerInput } from './player';
+import { Player, type PlayerInput, type PlayerWorld } from './player';
 import type { CollisionWorld, TileGrid } from './tiles';
+export type { CollisionWorld };
 import { TILE, TUNING } from './tuning';
 import { chargeFramesFor } from './weight';
 
@@ -34,12 +35,13 @@ export function findFootholds(grid: TileGrid, world: CollisionWorld = grid): Foo
 export interface ReachOptions {
   stones?: number;
   springBoots?: boolean;
+  crampons?: boolean;
   /** Pixels between sampled take-off points (default 4). */
   xStep?: number;
   /** Number of charge samples from tap to full (default 16). */
   chargeSteps?: number;
-  /** Collision world (defaults to the grid). */
-  world?: CollisionWorld;
+  /** Collision world (defaults to the grid). May provide ladders, water and ice. */
+  world?: PlayerWorld;
 }
 
 export interface ReachResult {
@@ -53,7 +55,7 @@ const NONE: PlayerInput = { left: false, right: false, jump: false };
 
 /** Where a simulated move ends: the foothold id, or -1 if it never lands. */
 function simulate(
-  world: CollisionWorld,
+  world: PlayerWorld,
   x: number,
   feetY: number,
   stones: number,
@@ -62,10 +64,12 @@ function simulate(
   dir: -1 | 0 | 1,
   walkOff: boolean,
   lookup: (feetY: number, x: number) => number,
+  crampons = false,
 ): number {
   const p = new Player(x, feetY - TUNING.bodyH);
   p.loadout.stones = stones;
   p.loadout.mods.springBoots = springBoots;
+  p.loadout.crampons = crampons;
   const dirInput = { left: dir < 0, right: dir > 0 };
   if (walkOff) {
     for (let i = 0; i < 60 && p.state !== 'air'; i++) p.update({ ...NONE, ...dirInput }, world);
@@ -76,13 +80,36 @@ function simulate(
     p.update({ ...NONE, ...dirInput }, world);
   }
   for (let i = 0; i < 1200 && p.state === 'air'; i++) p.update(NONE, world);
+  // let ice slides settle
+  for (let i = 0; i < 200 && p.state === 'ground' && p.vx !== 0; i++) p.update(NONE, world);
   if (p.state === 'air') return -1;
+  return lookup(p.feetY, p.body.x);
+}
+
+/** Climbs a ladder up or down from (x, feetY) and steps off; returns the foothold reached, or -1. */
+function climb(world: PlayerWorld, x: number, feetY: number, stones: number, up: boolean, side: -1 | 1, lookup: (feetY: number, x: number) => number): number {
+  const p = new Player(x, feetY - TUNING.bodyH);
+  p.loadout.stones = stones;
+  p.update({ ...NONE, up, down: !up }, world);
+  if (p.state !== 'ladder') return -1;
+  let lastY = p.body.y;
+  let still = 0;
+  for (let i = 0; i < 4000 && p.state === 'ladder' && still < 6; i++) {
+    p.update({ ...NONE, up, down: !up }, world);
+    still = p.body.y === lastY ? still + 1 : 0;
+    lastY = p.body.y;
+  }
+  const state = () => p.state as string;
+  if (state() === 'ladder') p.update({ ...NONE, left: side < 0, right: side > 0 }, world);
+  for (let i = 0; i < 30 && state() === 'ground'; i++) p.update({ ...NONE, left: side < 0, right: side > 0 }, world);
+  for (let i = 0; i < 1200 && state() === 'air'; i++) p.update(NONE, world);
+  if (state() === 'air' || state() === 'ladder') return -1;
   return lookup(p.feetY, p.body.x);
 }
 
 /** Breadth-first search over footholds reachable from the start position. */
 export function explore(grid: TileGrid, start: { x: number; y: number }, opts: ReachOptions = {}): ReachResult {
-  const world = opts.world ?? grid;
+  const world: PlayerWorld = opts.world ?? grid;
   const stones = opts.stones ?? 0;
   const springBoots = opts.springBoots ?? false;
   const xStep = opts.xStep ?? 4;
@@ -123,11 +150,20 @@ export function explore(grid: TileGrid, start: { x: number; y: number }, opts: R
     for (const x of xs) {
       for (let c = 0; c <= chargeSteps; c++) {
         const hold = Math.round((c / chargeSteps) * full);
-        for (const dir of [-1, 0, 1] as const) visit(simulate(world, x, feetY, stones, springBoots, hold, dir, false, lookup));
+        for (const dir of [-1, 0, 1] as const) visit(simulate(world, x, feetY, stones, springBoots, hold, dir, false, lookup, opts.crampons));
       }
     }
-    visit(simulate(world, f.x0, feetY, stones, springBoots, 0, -1, true, lookup));
-    visit(simulate(world, f.x1, feetY, stones, springBoots, 0, 1, true, lookup));
+    visit(simulate(world, f.x0, feetY, stones, springBoots, 0, -1, true, lookup, opts.crampons));
+    visit(simulate(world, f.x1, feetY, stones, springBoots, 0, 1, true, lookup, opts.crampons));
+    if (world.ladderAt) {
+      for (const x of xs) {
+        const cx = x + (TUNING.bodyW >> 1);
+        const near = world.ladderAt(cx - 7, feetY - TUNING.bodyH, 14, TUNING.bodyH + 6);
+        if (!near) continue;
+        for (const up of [true, false]) for (const side of [-1, 1] as const) visit(climb(world, x, feetY, stones, up, side, lookup));
+        break;
+      }
+    }
   }
   return { footholds, reached, from };
 }
