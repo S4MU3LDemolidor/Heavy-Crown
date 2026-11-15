@@ -22,7 +22,19 @@ export interface LadderHit {
 /** Collision plus the optional extras the player can use. */
 export interface PlayerWorld extends CollisionWorld {
   ladderAt?(x: number, y: number, w: number, h: number): LadderHit | null;
+  /** True if any water overlaps the rectangle. */
+  waterAt?(x: number, y: number, w: number, h: number): boolean;
+  /** True if the surface directly under the feet is ice. */
+  iceUnder?(x: number, feetY: number, w: number): boolean;
+  /** Horizontal wind acceleration (px/frame²) at a point, for airborne bodies. */
+  windAt?(x: number, y: number): number;
 }
+
+/** Ice friction (spec section 4). */
+const ICE_ACCEL = 0.04;
+const ICE_DECEL = 0.03;
+const WATER_WALK = 0.6;
+const MAX_WIND_VX = 3.5;
 
 export type PlayerEvent =
   | { type: 'chargeStart' }
@@ -39,6 +51,10 @@ export interface PlayerLoadout {
   mods: JumpMods;
   /** Feather Charm: hard landings never stumble. */
   noStumble: boolean;
+  /** Crampons: ice behaves like stone. */
+  crampons?: boolean;
+  /** Multiplier on wind push (Fur Cloak: 0.3). */
+  windResist?: number;
 }
 
 /** Pixels trimmed from each side of the body while on a ladder. */
@@ -125,24 +141,34 @@ export class Player {
       this.state = 'charge';
       this.chargeTime = 0;
       this.charge = 0;
-      this.vx = 0;
+      if (!this.onIce(world)) this.vx = 0;
       this.events.push({ type: 'chargeStart' });
       return;
     }
     const dir = this.dirOf(input);
     if (dir !== 0) this.facing = dir;
-    this.vx = dir * TUNING.walkSpeed * walkFactor(this.loadout.stones);
+    const wade = world.waterAt?.(this.body.x, this.body.y, this.body.w, this.body.h) ? WATER_WALK : 1;
+    const target = dir * TUNING.walkSpeed * walkFactor(this.loadout.stones) * wade;
+    if (this.onIce(world)) {
+      if (dir !== 0) this.vx += Math.max(-ICE_ACCEL, Math.min(ICE_ACCEL, target - this.vx));
+      else this.vx -= Math.sign(this.vx) * Math.min(Math.abs(this.vx), ICE_DECEL);
+    } else this.vx = target;
     if (moveX(this.body, this.vx, world)) this.vx = 0;
     // Walked off a ledge: fall from the next frame on, keeping walking speed.
     if (!onGround(this.body, world)) this.leaveGround();
   }
 
-  private updateCharge(input: PlayerInput, world: CollisionWorld): void {
+  private updateCharge(input: PlayerInput, world: PlayerWorld): void {
     if (!onGround(this.body, world)) {
       this.leaveGround();
       this.vx = 0;
       this.updateAir(world);
       return;
+    }
+    if (this.vx !== 0) {
+      // still sliding on ice while crouched
+      this.vx -= Math.sign(this.vx) * Math.min(Math.abs(this.vx), ICE_DECEL);
+      if (moveX(this.body, this.vx, world)) this.vx = 0;
     }
     const dir = this.dirOf(input);
     if (dir !== 0) this.facing = dir;
@@ -158,7 +184,16 @@ export class Player {
     this.events.push({ type: 'jump', charge: this.charge });
   }
 
-  private updateAir(world: CollisionWorld): void {
+  private onIce(world: PlayerWorld): boolean {
+    return !this.loadout.crampons && !!world.iceUnder?.(this.body.x, this.feetY, this.body.w);
+  }
+
+  private updateAir(world: PlayerWorld): void {
+    const wind = world.windAt?.(this.body.x + this.body.w / 2, this.body.y + this.body.h / 2) ?? 0;
+    if (wind !== 0) {
+      this.vx += wind * (this.loadout.windResist ?? 1);
+      this.vx = Math.max(-MAX_WIND_VX, Math.min(MAX_WIND_VX, this.vx));
+    }
     if (moveX(this.body, this.vx, world)) {
       this.vx = -this.vx * TUNING.wallBounce;
       if (this.vx !== 0) this.facing = this.vx > 0 ? 1 : -1;
@@ -173,18 +208,20 @@ export class Player {
         this.vy = 0;
         this.events.push({ type: 'bonkCeiling' });
       } else {
-        this.land();
+        this.land(world);
         return;
       }
     }
     if (this.body.y < this.apexY) this.apexY = this.body.y;
   }
 
-  private land(): void {
+  private land(world: PlayerWorld): void {
     const fall = this.body.y - this.apexY;
     const drop = this.feetY - this.takeoffFeetY;
-    const hard = fall >= TUNING.hardLandingFall && !this.loadout.noStumble;
-    this.vx = 0;
+    const inWater = !!world.waterAt?.(this.body.x, this.body.y, this.body.w, this.body.h + 1);
+    const hard = fall >= TUNING.hardLandingFall && !this.loadout.noStumble && !inWater;
+    // on ice the landing keeps its horizontal speed and slides
+    if (hard || !this.onIce(world)) this.vx = 0;
     this.vy = 0;
     this.body.remX = 0;
     this.body.remY = 0;
@@ -273,7 +310,7 @@ export class Player {
     this.vy = dy;
   }
 
-  private updateStumble(world: CollisionWorld): void {
+  private updateStumble(world: PlayerWorld): void {
     if (!onGround(this.body, world)) {
       this.leaveGround();
       this.updateAir(world);

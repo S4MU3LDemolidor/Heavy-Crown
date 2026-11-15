@@ -1,7 +1,7 @@
 import { layerHeight, paintLayer, paintSky, type LayerName } from '../art/backdrop';
 import { PixelBuffer } from '../art/buffer';
 import { BODY_FRAMES, buildClimberSheet, FEET_X, FEET_Y, FRAME_H, FRAME_W, type BodyFrame, type ClimberSheet } from '../art/climber';
-import { paintScreen, type BakedLight } from '../art/terrain';
+import { paintScreen, type BakedLight, type Tuft, type Vine } from '../art/terrain';
 import { THEMES, type Theme } from '../content/themes';
 import type { Camera } from '../game/camera';
 import type { World } from '../game/level';
@@ -9,8 +9,10 @@ import type { Game } from '../game/game';
 import type { Player } from '../game/player';
 import { SCREEN_H, VIEW_H, VIEW_W } from '../game/tuning';
 import { loadTier } from '../game/weight';
+import { Ambient } from './ambient';
 import { toCanvas } from './canvas';
 import { layerY, levelSpan } from './parallaxMath';
+import { Lighting } from './lighting';
 import { ObjectRenderer } from './objects';
 import { PackGear } from './packGear';
 import { Scarf } from './scarf';
@@ -70,7 +72,8 @@ export class ClimberAnimator {
 export class Scene {
   private readonly world: World;
   private readonly levelArt: LevelArt[];
-  private readonly bands = new Map<number, { canvas: HTMLCanvasElement; lights: BakedLight[] }>();
+  private readonly bands = new Map<number, { canvas: HTMLCanvasElement; lights: BakedLight[]; tufts: Tuft[]; vines: Vine[] }>();
+  private readonly ambient: Ambient;
   private readonly climber: ClimberSheet;
   private readonly sheetR: HTMLCanvasElement;
   private readonly sheetL: HTMLCanvasElement;
@@ -78,6 +81,9 @@ export class Scene {
   private scarf: Scarf | null = null;
   readonly objects = new ObjectRenderer();
   private readonly gear = new PackGear();
+  private readonly lighting = new Lighting();
+  /** Wind streak particles (gust warnings). */
+  private streaks: { x: number; y: number; len: number; v: number }[] = [];
 
   constructor(world: World) {
     this.world = world;
@@ -91,18 +97,19 @@ export class Scene {
       }
       return { theme, sky: toCanvas(paintSky(theme)), layers };
     });
+    this.ambient = new Ambient(world);
     this.climber = buildClimberSheet();
     this.sheetR = toCanvas(this.climber.sheet);
     this.sheetL = toCanvas(mirrorFrames(this.climber.sheet));
   }
 
   /** The baked canvas of a band, painting it on first use. */
-  band(b: number): { canvas: HTMLCanvasElement; lights: BakedLight[] } {
+  band(b: number): { canvas: HTMLCanvasElement; lights: BakedLight[]; tufts: Tuft[]; vines: Vine[] } {
     let baked = this.bands.get(b);
     if (!baked) {
       const theme = THEMES[this.world.levels[this.world.bandLevel[b]].theme];
       const s = paintScreen(this.world, b, theme);
-      baked = { canvas: toCanvas(s.buf), lights: s.lights };
+      baked = { canvas: toCanvas(s.buf), lights: s.lights, tufts: s.tufts, vines: s.vines };
       this.bands.set(b, baked);
     }
     return baked;
@@ -144,20 +151,75 @@ export class Scene {
     const li = this.world.bandLevel[camera.band];
     const art = this.levelArt[li];
     // backdrop of the camera's level (crossfades between levels come with the atmosphere pass)
+    const t = this.anim.time;
     ctx.drawImage(art.sky, 0, 0);
+    this.ambient.drawClouds(ctx, art.theme, t);
     for (const name of LAYERS) {
       const L = art.layers[name];
       ctx.drawImage(L.canvas, 0, layerY(this.world, li, name, L.h, camY));
+      if (name === 'far') this.ambient.drawBirds(ctx, art.theme, t);
     }
+    const gust = game.gust();
+    const windHere = this.world.bandWind[camera.band] ?? 0;
+    const gustK = windHere === 0 ? 0 : gust.phase === 'gust' ? 1 : gust.phase === 'telegraph' ? 0.4 : 0;
     for (let b = topBand; b <= topBand + 1 && b < this.world.screenCount; b++) {
       const y = b * SCREEN_H - camY;
       if (y >= VIEW_H || y + SCREEN_H <= 0) continue;
-      ctx.drawImage(this.band(b).canvas, 0, y);
+      const baked = this.band(b);
+      ctx.drawImage(baked.canvas, 0, y);
+      this.ambient.drawFoliage(ctx, baked.tufts, baked.vines, camY, t, player, gustK);
     }
-    const t = this.anim.time;
     this.objects.drawBack(ctx, game, camY, t);
-    this.objects.drawItems(ctx, game, camY, t);
-    this.drawClimber(ctx, player, camY, game.carried.map((c) => c.id));
+    this.objects.drawItems(ctx, game, camY);
+    const carried = game.carried.map((c) => c.id);
+    this.drawClimber(ctx, player, camY, carried);
+    this.drawWind(ctx, game, camY);
+    // lighting: the camera's level sets the ambient; skipped where the level is fully lit
+    const theme = art.theme;
+    if (theme.ambient < 1) {
+      this.lighting.begin(theme.ambient, theme.tint);
+      const cx = player.body.x + player.body.w / 2;
+      const cy = player.body.y + player.body.h / 2 - camY;
+      this.lighting.add(cx, cy, 18, '#c8c0e0', 0.45);
+      if (carried.includes('lantern')) {
+        const flicker = Math.sin(t * 0.21) * 2 + Math.sin(t * 0.53) * 1.5;
+        const lx = cx - player.facing * 7;
+        this.lighting.add(lx, cy + 3, 72 + flicker, '#ffd890', 1);
+        this.lighting.add(lx, cy + 3, 26, '#fff0c0', 0.6);
+      }
+      for (const id of carried) {
+        if (id === 'orb' || id === 'scepter' || id === 'seal' || id === 'crown') this.lighting.add(cx - player.facing * 6, cy - 6, 26, '#ffe8a0', 0.7);
+        if (id === 'ruby') this.lighting.add(cx, cy, 12, '#ff6070', 0.5);
+      }
+      for (const L of this.objects.lights(game)) {
+        const y = L.y - camY;
+        if (y < -L.r || y > VIEW_H + L.r) continue;
+        this.lighting.add(L.x, y, L.r, L.color, L.k ?? 1);
+      }
+      for (let b = topBand; b <= topBand + 1 && b < this.world.screenCount; b++) {
+        for (const L of this.band(b).lights) this.lighting.add(L.x, L.y - camY, L.r, L.color, 0.7);
+      }
+      for (const L of this.ambient.particleLights(theme)) this.lighting.add(L.x, L.y - camY, L.r, L.color, 0.6);
+      this.lighting.apply(ctx);
+    }
+    this.ambient.drawParticles(ctx, theme, camera.band, camY, game.windAt(0, camY + VIEW_H / 2));
+    this.objects.drawGlints(ctx, game, camY, t);
+  }
+
+  private drawWind(ctx: CanvasRenderingContext2D, game: Game, camY: number): void {
+    const band = Math.floor((camY + VIEW_H / 2) / SCREEN_H);
+    const dir = this.world.bandWind[band] ?? 0;
+    const gust = game.gust();
+    if (dir !== 0 && gust.phase !== 'calm' && this.streaks.length < (gust.phase === 'gust' ? 40 : 12) && this.anim.time % 2 === 0) {
+      this.streaks.push({ x: dir > 0 ? -20 : VIEW_W + 20, y: Math.random() * VIEW_H, len: 6 + Math.random() * 14, v: (gust.phase === 'gust' ? 7 : 4) + Math.random() * 3 });
+    }
+    ctx.fillStyle = 'rgba(230, 240, 255, 0.55)';
+    this.streaks = this.streaks.filter((s) => {
+      s.x += s.v * (dir || 1);
+      s.y += Math.sin((s.x + s.y) * 0.05) * 0.3;
+      ctx.fillRect(Math.round(s.x), Math.round(s.y), Math.round(s.len), 1);
+      return s.x > -40 && s.x < VIEW_W + 40;
+    });
   }
 
   private drawClimber(ctx: CanvasRenderingContext2D, p: Player, camY: number, carried: import('../content/items').ItemId[]): void {

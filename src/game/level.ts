@@ -15,6 +15,8 @@ export interface LevelDef {
   screens: string[][];
   /** Level-specific characters. Legend cells are interior empty space unless the entry says otherwise. */
   legend: Record<string, LegendEntry>;
+  /** Screens (index within this level, 0 = top) with gusting wind and its direction. */
+  wind?: { screen: number; dir: 1 | -1 }[];
 }
 
 export interface Spawn {
@@ -37,7 +39,15 @@ export interface World {
   /** Player start (top-left of the body, pixels), from the '@' marker. */
   start: { x: number; y: number };
   spawns: Spawn[];
+  /** Wind direction per band (0 = no wind). */
+  bandWind: number[];
 }
+
+/** Built-in characters that place objects. */
+const OBJECT_CHARS: Record<string, LegendEntry> = {
+  '=': { kind: 'object', object: 'plank' },
+  C: { kind: 'object', object: 'cracked' },
+};
 
 /** Built-in tile characters. */
 const TILE_CHARS: Record<string, { tile: TileId; open?: boolean }> = {
@@ -77,6 +87,9 @@ export function buildWorld(levels: LevelDef[]): World {
         if (base) {
           cells[i] = base.tile;
           open[i] = base.open ? 1 : 0;
+        } else if (OBJECT_CHARS[ch]) {
+          cells[i] = Tile.Empty;
+          spawns.push({ char: ch, entry: OBJECT_CHARS[ch], tx, ty });
         } else if (legend[ch]) {
           cells[i] = Tile.Empty;
           spawns.push({ char: ch, entry: legend[ch], tx, ty });
@@ -91,7 +104,13 @@ export function buildWorld(levels: LevelDef[]): World {
     });
   });
   if (!start) throw new Error('no @ start marker');
+  const bandWind = bands.map((band, bi) => {
+    const level = levels[band.level];
+    const first = bands.findIndex((b) => b.level === band.level);
+    return level.wind?.find((w) => w.screen === bi - first)?.dir ?? 0;
+  });
   return {
+    bandWind,
     grid: new TileGrid(cols, rows, cells),
     open,
     screenCount: bands.length,

@@ -31,10 +31,33 @@ export interface BakedLight {
   color: string;
 }
 
+/** A grass tuft drawn live so it can sway: base at (x, y) world pixels, growing up `len` pixels. */
+export interface Tuft {
+  x: number;
+  y: number;
+  len: number;
+  body: RGBA;
+  tip: RGBA;
+  flower?: RGBA;
+}
+
+/** A hanging ivy strand drawn live: top at (x, y), `path` is the x wiggle per pixel down. */
+export interface Vine {
+  x: number;
+  y: number;
+  path: number[];
+  seed: number;
+  dark: RGBA;
+  light: RGBA;
+  leaf: RGBA;
+}
+
 export interface BakedScreen {
   band: number;
   buf: PixelBuffer;
   lights: BakedLight[];
+  tufts: Tuft[];
+  vines: Vine[];
 }
 
 /**
@@ -225,11 +248,13 @@ export function paintScreen(world: World, band: number, theme: Theme): BakedScre
   }
 
   // --- theme accents ---
-  paintAccents(buf, world, band, theme, sw, lights);
-  return { band, buf, lights };
+  const tufts: Tuft[] = [];
+  const vines: Vine[] = [];
+  paintAccents(buf, world, band, theme, sw, lights, tufts, vines);
+  return { band, buf, lights, tufts, vines };
 }
 
-function paintAccents(buf: PixelBuffer, world: World, band: number, theme: Theme, sw: Swatch, lights: BakedLight[]): void {
+function paintAccents(buf: PixelBuffer, world: World, band: number, theme: Theme, sw: Swatch, lights: BakedLight[], tufts: Tuft[], vines: Vine[]): void {
   const grid = world.grid;
   const ty0 = band * SCREEN_ROWS;
   const oy = ty0 * TILE;
@@ -259,11 +284,10 @@ function paintAccents(buf: PixelBuffer, world: World, band: number, theme: Theme
             // tufts above the surface
             const h = hash2(x, ty, 41);
             if (!wet && h > 0.55) {
-              const len = h > 0.9 ? 3 : h > 0.75 ? 2 : 1;
-              for (let k = 1; k <= len; k++) setW(x, y0 - k, k === len ? a[4] : a[3]);
+              const len = h > 0.93 ? 4 : h > 0.8 ? 3 : h > 0.68 ? 2 : 1;
+              const flower = h > 0.985 ? (hash2(x, ty, 9) > 0.5 ? a2[0] : a2[3]) : undefined;
+              tufts.push({ x, y: y0, len: flower ? 3 : len, body: a[3], tip: a[4], flower });
             }
-            if (!wet && h > 0.985) setW(x, y0 - 2, hash2(x, ty, 9) > 0.5 ? a2[0] : a2[3]);
-            if (!wet && h > 0.985) setW(x, y0 - 1, a[2]);
           }
           // moss creeping down open sides
           for (const side of [-1, 1]) {
@@ -281,17 +305,14 @@ function paintAccents(buf: PixelBuffer, world: World, band: number, theme: Theme
             if (h < 0.86) continue;
             const len = 3 + Math.floor(hash2(x, ty, 62) * 16);
             let vx = x;
+            const path: number[] = [];
             for (let k = 0; k < len; k++) {
               const wy = y0 + TILE + k;
               if (solid((vx / TILE) | 0, (wy / TILE) | 0)) break;
               if (hash2(x, k, 63) > 0.8) vx += hash2(x, k, 64) > 0.5 ? 1 : -1;
-              setW(vx, wy, k % 4 === 3 ? a[3] : a[1]);
-              if (k % 4 === 2) {
-                const side = (k / 4) % 2 === 0 ? 1 : -1;
-                setW(vx + side, wy, a[2]);
-                setW(vx + side, wy - 1, a[3]);
-              }
+              path.push(vx - x);
             }
+            if (path.length > 1) vines.push({ x, y: y0 + TILE, path, seed: hash2(x, ty, 65) * 6.28, dark: a[1], light: a[3], leaf: a[2] });
           }
         }
         if (bottom && wet) {
