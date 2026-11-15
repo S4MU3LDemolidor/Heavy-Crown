@@ -17,8 +17,8 @@ Open http://localhost:5173.
 | Climb ladders | ↑ ↓ or W S | D-pad / left stick |
 | Charge and jump | hold and release Space | A |
 | Interact / pick up | E | X |
-| Pack (inventory) | Tab or I | Y |
-| Drop (in the pack) | Q | B |
+| Pack (choose an item, read about it) | Tab or I | Y |
+| Drop the selected item | Q | B |
 | Pause | Esc | Start |
 
 ## Commands

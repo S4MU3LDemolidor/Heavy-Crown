@@ -11,7 +11,7 @@ import { buildWorld } from './game/level';
 import { loadTier } from './game/weight';
 import { drawDebugText } from './render/debugDraw';
 import { Scene } from './render/scene';
-import { drawInventory, drawNote, drawPrompt, drawWeightMeter } from './ui/hud';
+import { drawInventory, drawNote, drawPackBar, drawPrompt, drawToast, drawWeightMeter } from './ui/hud';
 import { CREDITS, drawJournal, drawLogo, drawMap, drawMenu, drawOptions, drawStats, drawStoryLines, drawTitleCard, formatTime, type EndStats, type Options } from './ui/screens';
 import { dimScreen, drawTextCentered, UI } from './ui/draw';
 import { ENDING_LINES, INTRO_LINES } from './content/story';
@@ -54,6 +54,7 @@ let meterT = 0;
 let saveT = 0;
 let showHitboxes = false;
 let card: { numeral: string; title: string; t: number } | null = null;
+let toast: { text: string; t: number } | null = null;
 let uiT = 0;
 let options: Options = loadOptions();
 audio.setVolumes(options.music, options.sfx);
@@ -61,11 +62,11 @@ audio.setVolumes(options.music, options.sfx);
 function loadOptions(): Options {
   try {
     const o = JSON.parse(localStorage.getItem('heavycrown.options') ?? 'null');
-    if (o) return { music: o.music ?? 0.7, sfx: o.sfx ?? 0.8, alwaysMeter: !!o.alwaysMeter };
+    if (o) return { music: o.music ?? 0.7, sfx: o.sfx ?? 0.8, alwaysMeter: o.alwaysMeter ?? true };
   } catch {
     /* storage unavailable */
   }
-  return { music: 0.7, sfx: 0.8, alwaysMeter: false };
+  return { music: 0.7, sfx: 0.8, alwaysMeter: true };
 }
 
 function saveOptions(): void {
@@ -193,6 +194,7 @@ function update(): void {
   input.poll();
   uiT++;
   if (card && ++card.t > 180) card = null;
+  if (toast && --toast.t <= 0) toast = null;
   if (DEBUG && input.keyPressed('Digit2')) showHitboxes = !showHitboxes;
   const back = input.pressed('pause') || input.pressed('inventory');
   const ok = input.pressed('jump') || input.pressed('interact');
@@ -242,9 +244,16 @@ function update(): void {
         return;
       }
       if (input.pressed('inventory')) {
-        mode = { kind: 'inventory', sel: 0, message: null, messageT: 0 };
+        mode = { kind: 'inventory', sel: Math.max(0, game.selected), message: null, messageT: 0 };
         audio.chargeStop();
         return;
+      }
+      if (input.pressed('drop') && game.carried.length) {
+        if (game.drop(game.selected)) {
+          scene.onStep(game);
+          playSounds();
+          save();
+        } else toast = { text: 'You can only put things down on solid ground.', t: 120 };
       }
       if (input.pressed('interact')) {
         const it = game.interaction();
@@ -269,9 +278,11 @@ function update(): void {
       const n = game.carried.length;
       if (input.pressed('left') && n) mode.sel = (mode.sel - 1 + n) % n;
       if (input.pressed('right') && n) mode.sel = (mode.sel + 1) % n;
+      if (n) game.selected = Math.min(mode.sel, n - 1);
       if (input.pressed('drop') && n) {
         if (game.drop(mode.sel)) {
           mode.sel = Math.max(0, Math.min(mode.sel, game.carried.length - 1));
+          if (game.carried.length) game.selected = mode.sel;
           scene.onStep(game);
           playSounds();
           save();
@@ -406,7 +417,9 @@ function render(): void {
     case 'play': {
       const it = game.interaction();
       if (it) drawPrompt(ctx, it, camY, input);
-      drawWeightMeter(ctx, game.stones, options.alwaysMeter ? 1 : meterT / 30);
+      if (options.alwaysMeter) drawPackBar(ctx, game, input, scene.objects, camY);
+      else drawWeightMeter(ctx, game.stones, meterT / 30);
+      if (toast) drawToast(ctx, toast.text, toast.t);
       break;
     }
     case 'inventory':
@@ -421,6 +434,15 @@ function render(): void {
       dimScreen(ctx, 0.6);
       drawTextCentered(ctx, 'Paused', 240, 70, UI.gold);
       drawMenu(ctx, pauseItems(), mode.sel, 240, 96, uiT);
+      drawTextCentered(
+        ctx,
+        input.lastDevice === 'pad'
+          ? 'Stick walk  A hold to jump  X take/use  B drop  Y pack  Start pause'
+          : 'Arrows walk  Space hold to jump  E take/use  Q drop  Tab pack  Esc pause',
+        240,
+        236,
+        UI.dim,
+      );
       break;
     case 'options':
       drawOptions(ctx, options, mode.sel, !!document.fullscreenElement, uiT);

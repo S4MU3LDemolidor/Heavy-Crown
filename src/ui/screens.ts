@@ -108,7 +108,7 @@ export function drawOptions(ctx: CanvasRenderingContext2D, o: Options, sel: numb
     ['Music', bar(o.music)],
     ['Effects', bar(o.sfx)],
     ['Fullscreen', fullscreen ? 'On' : 'Off'],
-    ['Weight meter', o.alwaysMeter ? 'Always' : 'When it changes'],
+    ['Pack bar', o.alwaysMeter ? 'Always' : 'Only when weight changes'],
     ['Back', ''],
   ];
   rows.forEach(([label, value], i) => {

@@ -166,3 +166,25 @@ describe('game: gates, notes, ropes', () => {
     expect(h.notesRead.has('note1')).toBe(true);
   });
 });
+
+describe('game: the selected item', () => {
+  it('selects what you just picked up, and dropping it selects the next newest', () => {
+    const g = testWorld();
+    walkTo(g, 6 * 8 - 1);
+    g.interact(); // key
+    walkTo(g, 8 * 8 - 1);
+    g.interact(); // rope
+    expect(g.carried[g.selected].id).toBe('rope');
+    expect(g.drop(g.selected)).toBe(true);
+    expect(g.carried[g.selected].id).toBe('iron_key');
+  });
+
+  it('keeps the selection inside the pack when it shrinks, and -1 when empty', () => {
+    const g = testWorld();
+    walkTo(g, 6 * 8 - 1);
+    g.interact();
+    expect(g.selected).toBe(0);
+    expect(g.drop(g.selected)).toBe(true);
+    expect(g.selected).toBe(-1);
+  });
+});

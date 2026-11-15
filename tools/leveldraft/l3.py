@@ -98,8 +98,8 @@ b0.put(6, 10, 'n')                   # Maren: I found the Scepter
 b0.fill(22, 7, 28, 7, '#')
 b0.put(25, 6, 'r')                   # ruby
 b0.fill(34, 2, 57, 2, '#')           # top: into the dark
-b0.put(50, 1, 'l')                   # Maren's lantern, in the last light
-b0.put(46, 1, 'N')                   # Maren: I left my lantern burning
+b0.put(40, 1, 'l')                   # Maren's lantern, in the last light
+b0.put(43, 1, 'N')                   # Maren: I left my lantern burning
 
 HEADER = """import type { LevelDef } from '../../game/level';
 

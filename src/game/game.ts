@@ -157,6 +157,8 @@ export class Game implements PlayerWorld {
   player: Player;
   items: WorldItem[] = [];
   carried: Carried[] = [];
+  /** Index in `carried` of the item Q drops (the newest by default); -1 when the pack is empty. */
+  selected = -1;
   gates: Gate[] = [];
   hooks: Hook[] = [];
   notes: NoteObj[] = [];
@@ -354,7 +356,13 @@ export class Game implements PlayerWorld {
     return totalGold(this.carried.map((c) => c.id));
   }
 
+  /** Call after taking something: it becomes the selected item. */
+  private selectNewest(): void {
+    this.selected = this.carried.length - 1;
+  }
+
   updateLoadout(): void {
+    if (this.selected >= this.carried.length || (this.selected < 0 && this.carried.length)) this.selected = this.carried.length - 1;
     const l = this.player.loadout;
     const before = l.stones;
     l.stones = this.stones;
@@ -579,6 +587,7 @@ export class Game implements PlayerWorld {
     if (hk.ropeUid === null) return;
     this.carried.push({ uid: hk.ropeUid, id: 'rope' });
     hk.ropeUid = null;
+    this.selectNewest();
     this.updateLoadout();
     this.events.push({ type: 'rope', placed: false, x: hk.ladderTx * TILE + 4, y: hk.ty * TILE });
   }
@@ -607,6 +616,7 @@ export class Game implements PlayerWorld {
   pickUp(it: WorldItem): void {
     this.items = this.items.filter((x) => x !== it);
     this.carried.push({ uid: it.uid, id: it.id });
+    this.selectNewest();
     this.updateLoadout();
     this.events.push({ type: 'pickup', item: it.id, x: it.body.x + 4, y: it.body.y + 4 });
   }
@@ -618,6 +628,7 @@ export class Game implements PlayerWorld {
     const c = this.carried[index];
     if (!c) return false;
     this.carried.splice(index, 1);
+    this.selectNewest();
     const x = Math.round(p.body.x + p.body.w / 2 - ITEM_BOX / 2);
     const y = p.feetY - ITEM_BOX;
     this.items.push({ uid: c.uid, id: c.id, body: makeBody(x, y, ITEM_BOX, ITEM_BOX), vy: 0, order: ++this.order });
@@ -662,6 +673,7 @@ export class Game implements PlayerWorld {
     this.player = new Player(d.player.x, d.player.y);
     this.player.facing = d.player.facing;
     this.carried = d.carried.map((c) => ({ ...c }));
+    this.selected = this.carried.length - 1;
     this.items = d.items.map((i) => ({ uid: i.uid, id: i.id, body: makeBody(i.x, i.y, ITEM_BOX, ITEM_BOX), vy: 0, order: i.order }));
     for (const g of this.gates) {
       g.open = d.gatesOpen.includes(g.id);

@@ -109,3 +109,58 @@ export function drawNote(ctx: CanvasRenderingContext2D, title: string, text: str
   drawParagraph(ctx, text, x + 14, y + 26, w - 28, UI.paperInk, null);
   drawTextCentered(ctx, `${input.label('interact')} close`, VIEW_W / 2, y + h - 13, '#8a7650', null);
 }
+
+/**
+ * The pack bar, always on screen (top-left): carried items with the selected one highlighted,
+ * the load, and the keys to drop or open the pack. Fades while the climber is behind it.
+ */
+export function drawPackBar(ctx: CanvasRenderingContext2D, game: Game, input: Input, objects: ObjectRenderer, camY: number): void {
+  const x = 4;
+  const y = 4;
+  const slot = 14;
+  const n = game.carried.length;
+  const stones = game.stones;
+  const tier = loadTier(stones);
+  const sel = game.carried[game.selected];
+  const weight = `${stones} st`;
+  const tierName = TIER_NAMES[tier];
+  const hint = sel ? `${input.label('drop')} drop ${ITEMS[sel.id].name}   ${input.label('inventory')} pack` : `${input.label('inventory')} pack   ${input.label('interact')} take`;
+  const iconsW = Math.max(1, n) * slot;
+  const topW = iconsW + 8 + textWidth(weight) + 6 + textWidth(tierName);
+  const w = Math.max(topW, textWidth(hint)) + 10;
+  const h = 31;
+  const p = game.player.body;
+  const behind = p.x < x + w && p.x + p.w > x && p.y - camY < y + h && p.y - camY + p.h > y;
+  ctx.save();
+  ctx.globalAlpha = behind ? 0.35 : 0.92;
+  drawPanel(ctx, x, y, w, h);
+  for (let i = 0; i < n; i++) {
+    const sx = x + 4 + i * slot;
+    const sy = y + 3;
+    if (i === game.selected) {
+      ctx.fillStyle = UI.panelLight;
+      ctx.fillRect(sx - 1, sy - 1, slot, slot);
+      ctx.fillStyle = '#120d18';
+      ctx.fillRect(sx, sy, slot - 2, slot - 2);
+    }
+    ctx.drawImage(objects.itemCanvas(game.carried[i].id), sx, sy);
+  }
+  if (!n) drawText(ctx, '-', x + 8, y + 6, UI.dim, null);
+  const tx = x + 4 + iconsW + 4;
+  drawText(ctx, weight, tx, y + 6, UI.gold, null);
+  drawText(ctx, tierName, tx + textWidth(weight) + 6, y + 6, tier >= 4 ? UI.red : tier >= 3 ? UI.gold : UI.dim, null);
+  drawText(ctx, hint, x + 5, y + 19, UI.dim, null);
+  ctx.restore();
+}
+
+/** A short message at the bottom of the screen. */
+export function drawToast(ctx: CanvasRenderingContext2D, text: string, t: number): void {
+  const k = Math.min(1, t / 20);
+  ctx.save();
+  ctx.globalAlpha = k;
+  const w = textWidth(text) + 16;
+  const x = Math.round((VIEW_W - w) / 2);
+  drawPanel(ctx, x, VIEW_H - 30, w, 14);
+  drawText(ctx, text, x + 8, VIEW_H - 26, UI.red, null);
+  ctx.restore();
+}

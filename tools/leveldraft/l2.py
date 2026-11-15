@@ -25,7 +25,7 @@ t3.fill(22, 7, 28, 7, '#')           # Lb
 t3.fill(31, 2, 37, 2, '#')           # exit up (under the hole in the floor above)
 t3.fill(14, 26, 19, 26, '#')         # out of the pool: P1
 t3.fill(3, 22, 8, 22, '#')           # P2
-t3.put(4, 27, 'n')                   # Maren: left my books by the water
+t3.put(6, 21, 'n')                   # Maren: left my books by the water (on the ledge above the pool)
 t3.put(53, 25, 'c')
 
 # ---------- t2: the counterweight puzzle ----------
