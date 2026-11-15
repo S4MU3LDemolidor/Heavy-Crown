@@ -20,7 +20,7 @@ export const NOTES: Record<string, { title: string; text: string }> = {
   },
   note4: {
     title: "Maren's note",
-    text: 'Everything else can stay in the dark. I am keeping my lantern.',
+    text: 'I left my lantern burning at the edge of the dark, so I could find my way back down. I never came back for it.',
   },
   note5: {
     title: "Maren's note",

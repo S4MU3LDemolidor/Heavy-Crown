@@ -15,11 +15,12 @@ export const L3: LevelDef = {
     r: { kind: 'item', item: 'ruby' },
     c: { kind: 'item', item: 'coin_pouch' },
     n: { kind: 'object', object: 'note', props: { id: 'note3' } },
+    N: { kind: 'object', object: 'note', props: { id: 'note4' } },
   },
   screens: [
     [
       '##                                                        ##',
-      '##                                                l       ##',
+      '##                                            N   l       ##',
       '##                                ##########################',
       '##                                                        ##',
       '##                                                        ##',

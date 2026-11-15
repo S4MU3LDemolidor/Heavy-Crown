@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "art:preview": "tsx tools/preview.ts"
+    "art:preview": "tsx tools/preview.ts",
+    "check:levels": "tsx tools/check-levels.ts"
   },
   "devDependencies": {
     "@types/pngjs": "^6.0.5",

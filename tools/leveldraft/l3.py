@@ -99,6 +99,7 @@ b0.fill(22, 7, 28, 7, '#')
 b0.put(25, 6, 'r')                   # ruby
 b0.fill(34, 2, 57, 2, '#')           # top: into the dark
 b0.put(50, 1, 'l')                   # Maren's lantern, in the last light
+b0.put(46, 1, 'N')                   # Maren: I left my lantern burning
 
 HEADER = """import type { LevelDef } from '../../game/level';
 
@@ -117,6 +118,7 @@ export const L3: LevelDef = {
     r: { kind: 'item', item: 'ruby' },
     c: { kind: 'item', item: 'coin_pouch' },
     n: { kind: 'object', object: 'note', props: { id: 'note3' } },
+    N: { kind: 'object', object: 'note', props: { id: 'note4' } },
   },
 """
 with open('src/content/levels/l3-bell-hall.ts', 'w') as f:
