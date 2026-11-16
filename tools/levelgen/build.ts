@@ -81,7 +81,7 @@ async function main() {
     const next = FIXED[spec.id + 1]?.def;
     const t0 = performance.now();
     try {
-      const out = generate({ spec, prev, next });
+      const out = generate({ spec, prev, next }, Number(process.env.GEN_TRIES) || 400);
       levels.set(spec.id, out.level);
       writeFileSync(`${OUT}/l${pad(spec.id)}.ts`, emit(out.level, spec.name, out.seed));
       console.log(`✓ level ${spec.id} ${spec.name}: seed ${out.seed} (${out.tries} tries, ${out.route.length} ledges, ${Math.round(performance.now() - t0)} ms)`);

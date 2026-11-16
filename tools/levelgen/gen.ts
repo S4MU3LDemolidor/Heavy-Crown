@@ -9,6 +9,7 @@ import type { ThemeId } from '../../src/content/themes';
 import { Game } from '../../src/game/game';
 import { buildWorld, type LegendEntry, type LevelDef } from '../../src/game/level';
 import { explore, type ReachOptions } from '../../src/game/reach';
+import { crossingFootholds, MIN_STAND_ROW } from '../../src/game/visibility';
 import { SCREEN_COLS, SCREEN_ROWS, TILE, TUNING } from '../../src/game/tuning';
 import { jumpHeight } from '../../src/game/weight';
 
@@ -104,11 +105,11 @@ export interface GenSpec {
 }
 
 const STYLE: Record<ThemeId, Style> = {
-  overgrown: { walls: [2, 5], open: 0.5, widths: [4, 8], steps: [3, 9], gap: [-1, 3], flip: 0.22, blocks: 2, stubs: 3, thick: [1, 2] },
-  cistern: { walls: [2, 6], open: 0.12, widths: [4, 8], steps: [3, 9], gap: [-1, 3], flip: 0.22, blocks: 2, stubs: 3, thick: [1, 2] },
-  bells: { walls: [2, 5], open: 0.2, widths: [4, 7], steps: [3, 9], gap: [-1, 3], flip: 0.25, blocks: 1, stubs: 2, thick: [1, 2] },
-  dark: { walls: [2, 6], open: 0.04, widths: [4, 7], steps: [3, 9], gap: [-1, 3], flip: 0.25, blocks: 2, stubs: 3, thick: [1, 2] },
-  frozen: { walls: [2, 3], open: 0.9, widths: [4, 7], steps: [3, 9], gap: [-1, 3], flip: 0.25, blocks: 1, stubs: 2, thick: [1, 1] },
+  overgrown: { walls: [2, 5], open: 0.5, widths: [3, 6], steps: [4, 9], gap: [0, 4], flip: 0.22, blocks: 2, stubs: 3, thick: [1, 2] },
+  cistern: { walls: [2, 6], open: 0.12, widths: [3, 6], steps: [4, 9], gap: [0, 4], flip: 0.22, blocks: 2, stubs: 3, thick: [1, 2] },
+  bells: { walls: [2, 5], open: 0.2, widths: [3, 5], steps: [4, 9], gap: [0, 4], flip: 0.25, blocks: 1, stubs: 2, thick: [1, 2] },
+  dark: { walls: [2, 6], open: 0.04, widths: [4, 6], steps: [4, 9], gap: [0, 4], flip: 0.25, blocks: 2, stubs: 3, thick: [1, 2] },
+  frozen: { walls: [2, 3], open: 0.9, widths: [3, 5], steps: [4, 9], gap: [0, 4], flip: 0.25, blocks: 1, stubs: 2, thick: [1, 1] },
 };
 
 /** Highest step (rows) the climber can make at this load, with some margin. */
@@ -426,6 +427,12 @@ class Gen {
       L = Math.max(lo, Math.min(hi, L + rng.int(-2, 2)));
       R = Math.max(lo, Math.min(hi, R + rng.int(-2, 2)));
     }
+    // the top rows keep only the outer wall, so they never stick out past the walls of the level above
+    // (a wall top there would be a place to stand that crosses into the screen above)
+    for (let yy = this.top; yy < this.top + MIN_STAND_ROW && yy < c.h; yy++) {
+      this.wl[yy] = Math.min(this.wl[yy], 2);
+      this.wr[yy] = Math.min(this.wr[yy], 2);
+    }
     (this.spec.fixedTop ?? []).forEach((rows, s) => rows.forEach((line, y) => {
       const lead = line.search(/[^#]/);
       const trail = line.length - 1 - line.search(/#*$/);
@@ -495,11 +502,21 @@ class Gen {
     const thick = o.thick ?? rng.int(st.thick[0], st.thick[1]);
     for (let t = 0; t < 24; t++) {
       const hi = Math.min(this.ms, o.dyMax ?? 99);
-      const dy = o.dy ?? rng.int(Math.min(st.steps[0], hi), hi);
+      let y = cur.y - (o.dy ?? rng.int(Math.min(st.steps[0], hi), hi));
+      // never in a screen's top rows, where a climber standing would cross into the screen above:
+      // drop to the first allowed row of the same screen, or rise to the bottom row of the one above
+      const local = ((y % SR) + SR) % SR;
+      if (local < MIN_STAND_ROW) {
+        const down = y + (MIN_STAND_ROW - local);
+        const up = y - local - 1;
+        if (cur.y - down >= 2) y = down;
+        else if (cur.y - up <= hi) y = up;
+        else continue;
+      }
+      const dy = cur.y - y;
       const w = o.w ?? rng.int(st.widths[0], st.widths[1]);
       const gMax = dy <= 3 ? st.gap[1] + 2 : dy >= this.ms ? st.gap[1] - 1 : st.gap[1];
       const g = rng.int(st.gap[0], Math.max(st.gap[0], gMax));
-      const y = cur.y - dy;
       const [L, R] = this.bounds(y - 3, y + thick - 1);
       let x0 = dir > 0 ? cur.x1 + 1 + g : cur.x0 - 1 - g - w + 1;
       let x1 = x0 + w - 1;
@@ -817,6 +834,9 @@ class Gen {
       const p1 = dir > 0 ? off.x1 - 3 : off.x1;
       c.fill(p0, yF - 2, p1, yF - 1, '~');
       c.fill(dir > 0 ? p1 + 1 : p0 - 1, yF - 2, dir > 0 ? p1 + 1 : p0 - 1, yF - 1, '#');
+      // the outer edge meets the side wall; where the wall is thinner on these rows, build it out so no water hangs in the air
+      if (dir > 0) this.mergeWall('L', yF - 2, yF - 1, p0);
+      else this.mergeWall('R', yF - 2, yF - 1, p1);
     }
     // the next step leaves from near the hatch
     const near: Ledge = dir > 0 ? { x0: hx1 + 1, x1: Math.min(R, hx1 + 7), y: yF } : { x0: Math.max(L, hx0 - 7), x1: hx0 - 1, y: yF };
@@ -834,7 +854,8 @@ class Gen {
     for (let t = 0; t < 30 && !entry; t++) {
       const dy = rng.int(lo, Math.max(lo, this.ms));
       const y = pe.y - dy;
-      const w = rng.int(5, 8);
+      if (y % SR < MIN_STAND_ROW) continue;
+      const w = rng.int(4, 6);
       const g = rng.int(0, 2);
       const right = rng.chance(0.5);
       const [L, R] = this.bounds(y - 3, Math.min(c.h - 1, y + 1));
@@ -1114,6 +1135,26 @@ export function reaches(levels: LevelDef[], fromLi: number, from: [number, numbe
 
 function validate(input: GenInput, level: LevelDef, g: Gen): string | null {
   const { spec } = input;
+  {
+    // checked among its neighbours, so walls that continue into them do not count as places to stand
+    const world = buildWorld(input.next ? [input.prev, level, input.next] : [input.prev, level], { requireStart: false });
+    const game = new Game(world);
+    for (const gt of game.gates) gt.open = true;
+    for (const w of game.cracked) w.broken = true;
+    const crossing = crossingFootholds(world, game, [level.id]);
+    if (crossing.length) {
+      if (process.env.GEN_DEBUG) {
+        for (const f of crossing.slice(0, 3)) {
+          const band = Math.floor(f.ty / SR) - world.bandLevel.indexOf(1);
+          const row = level.screens[band]?.[f.ty % SR] ?? '';
+          const above = level.screens[band - 1]?.[SR - 1] ?? '(level above)';
+          const x0 = Math.floor(f.x0 / TILE);
+          console.log(`  crossing: screen ${band} row ${f.ty % SR} cols ${x0}-${Math.floor((f.x1 + 9) / TILE)} | ${JSON.stringify(row.slice(Math.max(0, x0 - 2), x0 + 12))} | above: ${JSON.stringify(above.slice(Math.max(0, x0 - 2), x0 + 12))}`);
+        }
+      }
+      return 'visibility: a block crosses a screen edge';
+    }
+  }
   const levels = input.next ? [input.prev, level, input.next] : [input.prev, level];
   const li = 1;
   const target = input.next ? { li: 2, cell: input.next.entry! } : { li, cell: level.exit! };
@@ -1137,5 +1178,10 @@ function validate(input: GenInput, level: LevelDef, g: Gen): string | null {
     const [r] = reaches(levels, li, level.entry!, [target], (game) => reachOpts(level, game, without, spec.cloak));
     if (r) return `bypass: ${m}`;
   }
+  // the level below still climbs into this one at its own load (as check-levels tests it): from its entry, since
+  // this level's lowest ledges can block the jump onto that level's exit
+  const below = input.prev;
+  const [linked] = reaches([below, level], 0, below.entry!, [{ li: 1, cell: level.entry! }], (game) => reachOpts(below, game, undefined, below.theme === 'frozen' && below.id > 25));
+  if (!linked) return 'unreachable: entry from below';
   return null;
 }

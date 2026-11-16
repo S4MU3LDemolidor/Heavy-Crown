@@ -7,7 +7,7 @@ import type { Camera } from '../game/camera';
 import type { World } from '../game/level';
 import type { Game } from '../game/game';
 import type { Player } from '../game/player';
-import { SCREEN_H, VIEW_H, VIEW_W } from '../game/tuning';
+import { SCREEN_H, SCREEN_ROWS, TILE, VIEW_H, VIEW_W } from '../game/tuning';
 import { loadTier } from '../game/weight';
 import { Ambient } from './ambient';
 import { Effects } from './effects';
@@ -299,6 +299,7 @@ export class Scene {
     this.objects.drawGlints(ctx, game, camY, t);
     this.effects.drawStun(ctx, player, camY, t);
     this.drawScare(ctx, camY);
+    this.drawEdgeHints(ctx, camera, this.anim.time);
     ctx.drawImage(this.vignette, 0, 0);
   }
 
@@ -363,6 +364,53 @@ export class Scene {
       ctx.fillRect(0, 0, VIEW_W, VIEW_H);
     }
     if (s.t > 40) this.scareFx = null;
+  }
+
+  private readonly hints = new Map<number, [number, number][]>();
+
+  /** Column ranges of ledges in the lowest rows of a screen (where a jump from below lands), excluding side walls. */
+  private hintSpans(band: number): [number, number][] {
+    let spans = this.hints.get(band);
+    if (spans) return spans;
+    const grid = this.world.grid;
+    const ty0 = band * SCREEN_ROWS;
+    const cols = new Array<boolean>(grid.cols).fill(false);
+    for (let ty = ty0 + 22; ty < ty0 + SCREEN_ROWS; ty++) {
+      for (let tx = 0; tx < grid.cols; tx++) {
+        const top = (x: number) => grid.isSolid(x, ty) && !grid.isSolid(x, ty - 1);
+        if (!top(tx)) continue;
+        let e = tx;
+        while (e + 1 < grid.cols && top(e + 1)) e++;
+        // runs that touch the side walls are walls, not ledges
+        if (tx > 2 && e < grid.cols - 3) for (let k = tx; k <= e; k++) cols[k] = true;
+        tx = e;
+      }
+    }
+    spans = [];
+    for (let tx = 0; tx < cols.length; tx++) {
+      if (!cols[tx]) continue;
+      let e = tx;
+      while (e + 1 < cols.length && cols[e + 1]) e++;
+      spans.push([tx, e]);
+      tx = e;
+    }
+    this.hints.set(band, spans);
+    return spans;
+  }
+
+  /** Small chevrons on the top edge above ledges waiting in the screen above, so no jump is blind. */
+  private drawEdgeHints(ctx: CanvasRenderingContext2D, camera: Camera, t: number): void {
+    const band = camera.band;
+    if (band <= 0 || Math.abs(camera.y - (band * SCREEN_H + 1)) > 1) return;
+    const a = 0.45 + 0.2 * Math.sin(t * 0.08);
+    for (const [x0, x1] of this.hintSpans(band - 1)) {
+      const cx = Math.round(((x0 + x1 + 1) * TILE) / 2);
+      const y = 1 + Math.round(Math.sin(t * 0.08 + cx) * 0.6);
+      ctx.fillStyle = `rgba(18, 13, 24, ${(a * 0.8).toFixed(2)})`;
+      for (const [dx, dy] of [[-2, 3], [-1, 2], [0, 1], [1, 2], [2, 3]]) ctx.fillRect(cx + dx, y + dy + 1, 1, 1);
+      ctx.fillStyle = `rgba(246, 210, 122, ${a.toFixed(2)})`;
+      for (const [dx, dy] of [[-2, 2], [-1, 1], [0, 0], [1, 1], [2, 2]]) ctx.fillRect(cx + dx, y + dy, 1, 1);
+    }
   }
 
   /** Moving highlights on water surfaces. */

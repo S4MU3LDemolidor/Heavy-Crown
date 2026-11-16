@@ -270,6 +270,24 @@ export function paintScreen(world: World, band: number, theme: Theme): BakedScre
     }
   }
 
+  // --- outline: a dark rim around every block where it meets back wall or sky, so ledges read clearly ---
+  {
+    const rim = st[0];
+    const solidPx = (x: number, y: number) => {
+      if (x < 0 || x >= SCREEN_W || y < 0 || y >= SCREEN_H) return false;
+      return solid((x / TILE) | 0, ((oy + y) / TILE) | 0) && buf.get(x, y) >>> 24 === 255;
+    };
+    const marks: number[] = [];
+    for (let y = 0; y < SCREEN_H; y++) {
+      const ty = ((oy + y) / TILE) | 0;
+      for (let x = 0; x < SCREEN_W; x++) {
+        if (solid((x / TILE) | 0, ty)) continue;
+        if (solidPx(x - 1, y) || solidPx(x + 1, y) || solidPx(x, y - 1) || solidPx(x, y + 1)) marks.push(y * SCREEN_W + x);
+      }
+    }
+    for (const i of marks) buf.px[i] = rim;
+  }
+
   // --- theme accents ---
   const tufts: Tuft[] = [];
   const vines: Vine[] = [];

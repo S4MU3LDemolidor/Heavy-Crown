@@ -52,7 +52,7 @@ export function drawWeightMeter(ctx: CanvasRenderingContext2D, stones: number, a
 export function drawInventory(ctx: CanvasRenderingContext2D, game: Game, sel: number, input: Input, objects: ObjectRenderer, message: string | null): void {
   dimScreen(ctx, 0.6);
   const w = 260;
-  const h = 150;
+  const h = 196;
   const x = Math.round((VIEW_W - w) / 2);
   const y = Math.round((VIEW_H - h) / 2);
   drawPanel(ctx, x, y, w, h);
@@ -86,12 +86,23 @@ export function drawInventory(ctx: CanvasRenderingContext2D, game: Game, sel: nu
     drawText(ctx, def.name, x + 8, ty, UI.ink);
     const ws = `${def.weight} st`;
     drawText(ctx, ws, x + w - 8 - textWidth(ws), ty, UI.gold);
-    drawParagraph(ctx, def.desc, x + 8, ty + 13, w - 16, UI.dim);
+    const used = drawParagraph(ctx, def.desc, x + 8, ty + 13, w - 16, UI.dim);
+    const how = useText(def.use, input);
+    if (how) {
+      drawText(ctx, 'How to use', x + 8, ty + 17 + used, UI.gold);
+      drawParagraph(ctx, how, x + 8, ty + 29 + used, w - 16, UI.ink);
+    }
   } else {
     drawParagraph(ctx, 'Your pack is empty. Light as a feather, and just as poor.', x + 8, ty, w - 16, UI.dim);
   }
   const hint = `${input.label('left')}/${input.label('right')} choose   ${input.label('drop')} drop   ${input.label('inventory')} close`;
   drawTextCentered(ctx, message ?? hint, VIEW_W / 2, y + h - 13, message ? UI.red : UI.dim);
+}
+
+/** An item's how-to-use text with each {action} replaced by the player's key or button. */
+export function useText(use: string | undefined, input: Input): string {
+  if (!use) return '';
+  return use.replace(/\{(\w+)\}/g, (_m, a: string) => input.label(a as Parameters<Input['label']>[0]));
 }
 
 /** Maren's note on a scrap of paper (game paused). */

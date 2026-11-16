@@ -188,3 +188,23 @@ describe('game: the selected item', () => {
     expect(g.selected).toBe(-1);
   });
 });
+
+describe('item how-to-use text', () => {
+  it('names the real keys for every placeholder', async () => {
+    const { ITEMS } = await import('../src/content/items');
+    const { useText } = await import('../src/ui/hud');
+    const fake = { label: (a: string) => `<${a}>` } as unknown as Parameters<typeof useText>[1];
+    const known = ['left', 'right', 'up', 'down', 'jump', 'interact', 'inventory', 'drop', 'pause', 'hook'];
+    for (const def of Object.values(ITEMS)) {
+      if (!def.use) continue;
+      for (const m of def.use.matchAll(/\{(\w+)\}/g)) expect(known).toContain(m[1]);
+      expect(useText(def.use, fake)).not.toMatch(/[{}]/);
+    }
+    expect(useText(ITEMS.iron_key.use, fake)).toBe('Walk up to an iron gate and press <interact>. The key is used up.');
+  });
+
+  it('gives every item that does something a way to use it', async () => {
+    const { ITEMS } = await import('../src/content/items');
+    for (const def of Object.values(ITEMS)) if (def.kind !== 'crown') expect(def.use, def.id).toBeTruthy();
+  });
+});

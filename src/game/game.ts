@@ -146,8 +146,8 @@ export interface Stats {
 }
 
 export interface SaveData {
-  /** Version 2: the 30-level tower (version-1 saves were the 5-level MVP and start a new climb). */
-  v: 2;
+  /** Version 3: the tower with ledges kept clear of the screen edges (older saves hold positions from other layouts and start a new climb). */
+  v: 3;
   player: { x: number; y: number; facing: 1 | -1 };
   carried: Carried[];
   items: { uid: number; id: ItemId; x: number; y: number; order: number }[];
@@ -929,7 +929,7 @@ export class Game implements PlayerWorld, StoryHost {
 
   save(): SaveData {
     return {
-      v: 2,
+      v: 3,
       player: { x: this.player.body.x, y: this.player.body.y, facing: this.player.facing },
       carried: this.carried.map((c) => ({ ...c })),
       items: this.items.map((it) => ({ uid: it.uid, id: it.id, x: it.body.x, y: it.body.y, order: it.order })),
