@@ -55,9 +55,9 @@ export class ClimberAnimator {
         if (p.vy < 1.4) return 'apex';
         return (this.t >> 3) % 2 ? 'fall1' : 'fall0';
       case 'cling':
-        return (Math.floor(p.body.y / 4) & 1) ? 'ladder1' : 'ladder0';
+        return (Math.floor(p.body.y / 6) & 1) ? 'cling1' : 'cling0';
       case 'hang':
-        return p.charge > 0.5 ? 'apex' : 'ladder0';
+        return p.charge > 0.5 ? 'apex' : 'hang';
       case 'pull':
         return 'rise';
       case 'stumble': {
@@ -468,8 +468,8 @@ export class Scene {
           const px = Math.round(a.x + ((b.x - a.x) * s) / steps);
           const py = Math.round(a.y + ((b.y - a.y) * s) / steps) - camY;
           ctx.fillStyle = '#120d18';
-          ctx.fillRect(px - 1, py, 3, 2);
-          ctx.fillRect(px, py - 1, 1, 4);
+          ctx.fillRect(px - 1, py, 4, 2);
+          ctx.fillRect(px, py - 1, 2, 4);
         }
       }
       for (let i = pts.length - 1; i >= 1; i--) {
@@ -478,8 +478,8 @@ export class Scene {
         for (let s = 0; s <= 3; s++) {
           const px = Math.round(a.x + ((b.x - a.x) * s) / 3);
           const py = Math.round(a.y + ((b.y - a.y) * s) / 3) - camY;
-          ctx.fillStyle = i >= pts.length - 1 ? '#962838' : '#d6453b';
-          ctx.fillRect(px, py, 1, 2);
+          ctx.fillStyle = i >= pts.length - 1 ? '#9c2338' : '#d8463b';
+          ctx.fillRect(px, py, 2, 2);
         }
       }
     }

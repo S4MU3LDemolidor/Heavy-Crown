@@ -37,6 +37,10 @@ function mini(rows: string[]): Mini {
   return { w: pad.w, h: pad.h, r: toCanvas(pad), l: toCanvas(flipped) };
 }
 
+/** Where the crown sits on Wren's hood in the idle pose (frame coordinates, facing right). */
+const CROWN_X = 20;
+const CROWN_Y = 13;
+
 export class PackGear {
   private readonly minis: Partial<Record<ItemId, Mini>> = {};
 
@@ -80,8 +84,9 @@ export class PackGear {
     if (has('crown')) {
       // worn on the head, not the pack
       const m = this.minis.crown!;
-      const hx = facing > 0 ? 15 - 1 : FRAME_W - 15 - m.w + 2;
-      ctx.drawImage(facing > 0 ? m.r : m.l, frameX + hx, frameY + 4);
+      // centred over the hood, whose top is at frame row CROWN_Y
+      const hx = facing > 0 ? CROWN_X - (m.w >> 1) : FRAME_W - CROWN_X - (m.w >> 1);
+      ctx.drawImage(facing > 0 ? m.r : m.l, frameX + hx, frameY + CROWN_Y - m.h + 4);
     }
     if (has('lantern')) {
       const sway = Math.round(Math.sin(t * 0.07));

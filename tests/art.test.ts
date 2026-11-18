@@ -155,6 +155,30 @@ describe("Wren's sheet", () => {
     expect(frames[1].idle0.pack[3]).toBeGreaterThan(frames[0].idle0.pack[3]);
   });
 
+  it('draws a pose for every body frame (only land and the last stumble frame reuse a crouch on purpose)', () => {
+    const sig = (name: (typeof BODY_FRAMES)[number]) => {
+      const f = frames[0][name];
+      let s = '';
+      for (let y = 0; y < FRAME_H; y++) for (let x = 0; x < FRAME_W; x++) s += (sheet.get(f.sx + x, f.sy + y) >>> 0).toString(36) + ',';
+      return s;
+    };
+    const seen = new Map<string, string>();
+    const shared = new Set(['land', 'stumble3']);
+    for (const name of BODY_FRAMES) {
+      const s = sig(name);
+      if (!shared.has(name)) expect(seen.get(s), `${name} repeats ${seen.get(s)}`).toBeUndefined();
+      seen.set(s, name);
+    }
+    expect(BODY_FRAMES).toContain('cling0');
+    expect(BODY_FRAMES).toContain('hang');
+  });
+
+  it('lies flat when knocked down: the first stumble frames are wider than tall', () => {
+    const m = measure(0, 'stumble0');
+    expect(m.w).toBeGreaterThan(m.h);
+    expect(m.bottom).toBe(FEET_Y);
+  });
+
   it('puts the neck inside the frame, near the top of the body', () => {
     const [nx, ny] = frames[0].idle0.neck;
     expect(nx).toBeGreaterThan(FEET_X - 8);

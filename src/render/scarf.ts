@@ -1,9 +1,10 @@
 /** A short pixel chain that trails from the neck and streams during falls (spec section 10). */
 export class Scarf {
   readonly pts: { x: number; y: number; px: number; py: number }[] = [];
-  private readonly seg = 2.2;
+  /** Link length: 1.5× the MVP's, for the remake's bigger climber. */
+  private readonly seg = 3.3;
 
-  constructor(x: number, y: number, n = 5) {
+  constructor(x: number, y: number, n = 6) {
     for (let i = 0; i < n; i++) this.pts.push({ x: x - i * this.seg, y, px: x - i * this.seg, py: y });
   }
 
