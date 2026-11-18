@@ -53,6 +53,28 @@ export const SCENES: Record<string, Scene> = {
       { fade: 'in' },
     ],
   },
+  /** Level 6's campfire, the end of Act II: Wren says what they said that night. */
+  fire2: {
+    id: 'fire2',
+    steps: [
+      { move: 'wren', to: 2 },
+      { pose: 'wren', frame: 'sit' },
+      { wait: 40 },
+      { spawn: 'crow', sprite: 'crow', at: [8, 0], dir: -1 },
+      { say: 'You found the Orb. It hums. I hate it.', who: 'crow', face: 'smug' },
+      { say: 'Nell knew her. Mom sent her a drawing I made. A house with a lamp in the window.', who: 'wren', face: 'sad' },
+      { say: 'I drew it the week before she left. Then I told her not to come back.', who: 'wren', face: 'sad' },
+      { say: '"If you go, don\'t ever come back." That is what I said. I was eight. I meant it for about an hour.', who: 'wren', face: 'crying' },
+      { say: 'And she did not come back.', who: 'crow', face: 'serious' },
+      { say: 'And she did not come back.', who: 'wren', face: 'crying' },
+      { say: 'The Orb is heavy. Send it up in the bucket if you are clever. Carry it if you are stubborn. You strike me as stubborn.', who: 'crow', face: 'sad' },
+      { fade: 'out' },
+      { pose: 'wren', frame: '' },
+      { remove: 'crow' },
+      { set: 'act2done' },
+      { fade: 'in' },
+    ],
+  },
   summit: {
     id: 'summit',
     steps: [

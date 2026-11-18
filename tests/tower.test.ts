@@ -59,4 +59,13 @@ describe('the tower', () => {
     expect(itemLevels('claws')).toEqual([3]);
     expect(game.sceneTriggers.map((t) => t.id)).toEqual(expect.arrayContaining(['intro', 'fire1']));
   });
+
+  it("puts Act II's things where the story needs them", () => {
+    expect(itemLevels('stone').sort()).toEqual([4, 5]);
+    expect(itemLevels('spring_boots')).toEqual([5]);
+    expect(itemLevels('orb')).toEqual([6]);
+    expect(game.lifts.map((l) => [levelAt(Math.floor(l.y / 8) - 1), l.net, l.order])).toEqual(expect.arrayContaining([[5, 'a', 1], [6, 'a', 2]]));
+    expect(game.scares.map((s) => s.id)).toContain('hand');
+    expect(game.sceneTriggers.map((t) => t.id)).toContain('fire2');
+  });
 });

@@ -10,7 +10,7 @@ Each stage gets its own plan, written when the stage before it is done (so it ca
 | 2 | Wren: idle pose and portrait → **user review** → full animation set, packs, scarf, all of Wren's faces | plan 1 (Tasks 6–9), then `2026-11-18-remake-02-wren-animation.md` | look approved by the user (2026-11-18); animations and faces done |
 | 3 | Story systems: portraits in dialogue, cutscenes, The Words, endings | `2026-11-18-remake-03-story-systems.md` | done |
 | 4 | Act I playable: levels 1–3, the Crow and Oskar, intro, fire scene 1 (play review waived by the user) | `2026-11-18-remake-04-act-1.md` | done |
-| 5 | Act II: levels 4–6, Nell, the Orb, fire scene 2 | plan 5 | — |
+| 5 | Act II: levels 4–6, Nell, the Orb, fire scene 2 | `2026-11-18-remake-05-act-2.md` | done |
 | 6 | Act III: levels 7–9, the Bellringer, the twist, the Scepter, fire scene 3 | plan 6 | — |
 | 7 | Act IV: levels 10–12, the Hollow Ones, the Seal, fire scene 4 | plan 7 | — |
 | 8 | Act V: levels 13–15, the Old King, the memory, Maren, both endings; full checks; ask about merging | plan 8 | — |

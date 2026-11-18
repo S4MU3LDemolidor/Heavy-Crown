@@ -88,7 +88,44 @@ export const NPCS: Record<string, NpcDef> = {
     sprite: 'nell',
     voice: { pitch: 330, wave: 'triangle', rate: 2 },
     behavior: 'static',
-    conversations: [],
+    conversations: [
+      {
+        id: 'nell-5-first',
+        at: 'l5',
+        once: true,
+        nodes: [
+          { id: 'a', text: 'Another climber. And that scarf. Oh. Oh, you have her face.', face: 'kind', next: 'b' },
+          { id: 'b', who: 'wren', text: 'You knew my mother?', face: 'surprised', next: 'c' },
+          { id: 'c', text: 'Maren. She sent things up my buckets for a whole season. Books. Her good boots. A drawing of a house with a lamp in the window.', face: 'tired', next: 'd' },
+          { id: 'd', text: 'Then she sent nothing. I kept a bucket waiting for her for a year.', face: 'sad', next: 'e' },
+          { id: 'e', who: 'wren', text: 'She sent the drawing away?', face: 'sad', next: 'f' },
+          {
+            id: 'f',
+            text: 'She said it was the heaviest thing she owned. Ten gold a ride, love. The lift runs all the way to the summit, one station at a time.',
+            face: 'kind',
+            choices: [
+              { label: 'Send something up (10 gold)', do: [{ lift: 'send' }] },
+              { label: 'Not now.' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'nell-5',
+        at: 'l5',
+        nodes: [
+          {
+            id: 'a',
+            text: 'Ten gold a ride. Anything but what you carry in your chest; the bucket cannot take that.',
+            face: 'kind',
+            choices: [
+              { label: 'Send something up (10 gold)', do: [{ lift: 'send' }] },
+              { label: 'Not now.' },
+            ],
+          },
+        ],
+      },
+    ],
   },
   bellringer: {
     id: 'bellringer',

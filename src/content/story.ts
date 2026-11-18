@@ -13,6 +13,10 @@ export const NOTES: Record<string, { title: string; text: string }> = {
   note1: { title: "Maren's note", text: 'First night in the tower. I can still see our window from here, the lamp you leave on for me. I packed everything I own. The tower laughed at me on the first ledge.' },
   note2: { title: "Maren's note", text: 'The rope was the cleverest thing I carried and the thing I nearly left behind. I keep reaching into the pack for things that are not there. Your drawing. Your little shoes. I should not have brought those.' },
   note3: { title: "Maren's note", text: 'The hoarder sold me claws and asked what I would never put down. I said nothing. I meant you. I meant leaving you.' },
+  // Act II
+  note4: { title: "Maren's note", text: 'The water down here is cold enough to stop a heart. Something lives in it. It took hold of my ankle and let go again, as if it were only checking what I weighed.' },
+  note5: { title: "Maren's note", text: "Sent my books up in Nell's bucket today, and your drawing with them, the house with the lamp in the window. I could not carry it any further. I told myself it was the paper that was heavy." },
+  note6: { title: "Maren's note", text: 'The Orb. It hums like a hive. The altar wants three of these and I can barely carry one. I keep hearing what you said that night. You had every right to say it.' },
 };
 
 /** The fifteen levels' names (remake spec section 4.2). */

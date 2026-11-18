@@ -1,6 +1,7 @@
 import { PixelBuffer } from './buffer';
 import { hex } from './color';
 import { CROW } from './sitters/crow';
+import { NELL } from './sitters/nell';
 import { OSKAR } from './sitters/oskar';
 import { WREN } from './sitters/wren';
 
@@ -19,7 +20,7 @@ export interface Sitter {
 export type WrenFace = 'neutral' | 'sad' | 'angry' | 'surprised' | 'determined' | 'crying';
 export const WREN_FACES: readonly WrenFace[] = ['neutral', 'sad', 'angry', 'surprised', 'determined', 'crying'];
 
-const SITTERS: Record<string, Sitter> = { wren: WREN, crow: CROW, oskar: OSKAR };
+const SITTERS: Record<string, Sitter> = { wren: WREN, crow: CROW, oskar: OSKAR, nell: NELL };
 
 export function hasPortrait(who: string): boolean {
   return who in SITTERS;
