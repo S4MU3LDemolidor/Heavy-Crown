@@ -1,5 +1,6 @@
 import { layerHeight, paintLayer, paintSky, type LayerName } from '../src/art/backdrop';
 import { PixelBuffer } from '../src/art/buffer';
+import { hex } from '../src/art/color';
 import { buildClimberSheet, FEET_X, FEET_Y, FRAME_H, FRAME_W, type BodyFrame } from '../src/art/climber';
 import { paintScreen } from '../src/art/terrain';
 import { LEVELS } from '../src/content/levels';
@@ -24,6 +25,44 @@ if (which === 'all' || which === 'climber') {
   });
   savePng(close, 'previews/climber-close.png', 8, '#3a4048');
   console.log('previews/climber.png, previews/climber-close.png');
+}
+
+if (which === 'all' || which === 'wren') {
+  const { sheet, frames } = buildClimberSheet();
+  const { portrait, PORTRAIT_SIZE } = await import('../src/art/portraits');
+  // idle0 and idle1 at tiers 0, 1 and 3, then the portrait; once on a dark and once on a light panel
+  const picks: [number, BodyFrame][] = [[0, 'idle0'], [0, 'idle1'], [1, 'idle0'], [3, 'idle0']];
+  const pad = 4;
+  const cellW = FRAME_W + pad;
+  const rowH = Math.max(FRAME_H, PORTRAIT_SIZE);
+  const out = new PixelBuffer(picks.length * cellW + PORTRAIT_SIZE + 3 * pad, rowH * 2 + 3 * pad);
+  const panels = [hex('#2b2d3c'), hex('#8c97a8')];
+  out.fillRect(0, 0, out.w, out.h, panels[0]);
+  panels.forEach((bg, row) => {
+    const y = pad + row * (rowH + pad);
+    out.fillRect(0, y - pad / 2, out.w, rowH + pad, bg);
+    picks.forEach(([t, f], i) => {
+      const info = frames[t][f];
+      out.blit(sheet, pad + i * cellW, y + rowH - FRAME_H, false, info.sx, info.sy, FRAME_W, FRAME_H);
+    });
+    out.blit(portrait('wren', 'neutral'), picks.length * cellW + 2 * pad, y);
+  });
+  savePng(out, 'previews/wren.png', 6);
+  console.log('previews/wren.png');
+
+  // Wren at game size on the placeholder level's floor, so the scale can be judged against the tiles
+  const world = buildWorld(LEVELS);
+  const theme = THEMES[world.levels[0].theme];
+  const band = world.screenCount - 1;
+  const camY = band * SCREEN_H + VIEW_CROP;
+  const view = new PixelBuffer(VIEW_W, VIEW_H);
+  view.blit(paintSky(theme), 0, 0);
+  view.blit(paintScreen(world, band, theme).buf, 0, -VIEW_CROP);
+  const s = world.start;
+  const f = frames[1].idle0;
+  view.blit(sheet, s.x + Math.floor(TUNING.bodyW / 2) - FEET_X, s.y + TUNING.bodyH - 1 - FEET_Y - camY + 1, false, f.sx, f.sy, FRAME_W, FRAME_H);
+  savePng(view, 'previews/wren-in-scene.png', 2);
+  console.log('previews/wren-in-scene.png');
 }
 
 if (which === 'all' || which === 'screens') {
