@@ -6,7 +6,7 @@ import { SCREEN_H } from '../game/tuning';
 import type { Game } from '../game/game';
 import { Tile } from '../game/tiles';
 import { TILE, VIEW_H } from '../game/tuning';
-import { liftSprite, npcSprites, scareSprites } from '../art/npcs';
+import { npcSprites, scareSprites } from '../art/npcs';
 import { props, type Prop } from '../art/props';
 import { toCanvas } from './canvas';
 import type { Actor } from '../game/cutscene';
@@ -20,7 +20,6 @@ export class ObjectRenderer {
   private readonly wood = toCanvas(ladderTile(false));
   private readonly note = toCanvas(NOTE);
   private readonly ring = toCanvas(RING);
-  private readonly lift = toCanvas(liftSprite());
   /** NPC frames: [right-facing, left-facing] per frame. */
   private readonly npc: Record<string, { r: HTMLCanvasElement[]; l: HTMLCanvasElement[]; w: number; h: number }> = {};
   readonly scare: Record<string, HTMLCanvasElement> = {};
@@ -276,11 +275,15 @@ export class ObjectRenderer {
       const bob = def.behavior === 'crow' && (t + n.x) % 150 < 6 ? -1 : 0;
       ctx.drawImage((n.facing > 0 ? art.r : art.l)[frame], Math.round(n.x - art.w / 2), y + bob);
     }
+    // Nell's lift stations (the remake's redrawn prop): pulley, rope and bucket, with what waits in the bucket
+    const lift = this.props.lift;
     for (const st of game.lifts) {
-      const y = st.y - this.lift.height + 1 - camY;
-      if (y > VIEW_H || y < -40) continue;
-      ctx.drawImage(this.lift, st.x - 6, y);
-      st.bucket.slice(0, 2).forEach((it, i) => ctx.drawImage(this.items[it.id], st.x - 8 + i * 5, y + 9));
+      const h = lift.prop.h;
+      const y = st.y - h + 1 - camY;
+      if (y > VIEW_H || y + h < 0) continue;
+      const x = Math.round(st.x - lift.prop.w / 2);
+      ctx.drawImage(lift.r[Math.floor((t + st.x) / 40) % lift.r.length], x, y);
+      st.bucket.slice(0, 2).forEach((it, i) => ctx.drawImage(this.items[it.id], x + 9 + i * 5, y + h - 16));
     }
   }
 
