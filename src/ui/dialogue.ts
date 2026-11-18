@@ -11,13 +11,15 @@ export interface DialogueLine {
 
 /**
  * The dialogue box (remake spec 5.3): the speaker's 64×64 portrait in a frame on their side (Wren on the left,
- * everyone else on the right), their name above the typed-out text, then the choices.
+ * everyone else on the right), their name above the typed-out text, then the choices. It moves to the top of the
+ * screen when the climber stands where it would cover them.
  */
-export function drawDialogue(ctx: CanvasRenderingContext2D, view: DialogueLine, typed: number, sel: number, portrait: HTMLCanvasElement | null, side: 'left' | 'right', hint: string): void {
+export function drawDialogue(ctx: CanvasRenderingContext2D, view: DialogueLine, typed: number, sel: number, portrait: HTMLCanvasElement | null, side: 'left' | 'right', hint: string, atTop = false): void {
   const x = 12;
   const w = VIEW_W - 24;
   const h = 86;
-  const y = VIEW_H - h - 8;
+  // at the bottom of the screen, unless that would hide the climber
+  const y = atTop ? 8 : VIEW_H - h - 8;
   drawPanel(ctx, x, y, w, h);
   const frame = 70;
   const hasPortrait = !!portrait;

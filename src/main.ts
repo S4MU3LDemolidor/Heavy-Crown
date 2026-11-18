@@ -9,6 +9,7 @@ import { addEnding, clearSave, readEndings, readSave, writeSave } from './engine
 import { Camera } from './game/camera';
 import { Game } from './game/game';
 import { buildWorld } from './game/level';
+import { TUNING, VIEW_H } from './game/tuning';
 import { loadTier } from './game/weight';
 import { drawDebugText } from './render/debugDraw';
 import { Scene } from './render/scene';
@@ -161,6 +162,11 @@ function speakerName(who: string): string {
   if (who === 'young') return 'Maren, ten years ago';
   if (who === 'child') return 'Wren, eight';
   return game.npcDefs[who]?.name ?? (who === 'maren' ? 'Maren' : who);
+}
+
+/** True when the climber stands low enough on screen that a dialogue box at the bottom would hide them. */
+function dialogueOnTop(): boolean {
+  return game.player.body.y - Math.round(camera.y) > VIEW_H - 110;
 }
 
 /** Held poses a scene can ask of Wren, by name (or any body frame). */
@@ -702,7 +708,7 @@ function render(): void {
         const portrait = portraitFor(view.who, view.face, mode.runner.def.sprite);
         const typedOut = mode.typed >= view.text.length;
         const hint = !typedOut ? `${input.label('interact')} skip` : view.choices.length ? `${input.label('up')}/${input.label('down')} choose  ${input.label('interact')} select` : `${input.label('interact')} continue`;
-        drawDialogue(ctx, view, mode.typed, mode.sel, portrait, view.who === 'wren' ? 'left' : 'right', hint);
+        drawDialogue(ctx, view, mode.typed, mode.sel, portrait, view.who === 'wren' ? 'left' : 'right', hint, dialogueOnTop());
       }
       if (toast) drawToast(ctx, toast.text, toast.t);
       break;
@@ -711,9 +717,9 @@ function render(): void {
       const r = mode.runner;
       if (r.line) {
         const typedOut = mode.typed >= r.line.text.length;
-        drawDialogue(ctx, { name: speakerName(r.line.who), text: r.line.text, choices: [] }, mode.typed, 0, portraitFor(r.line.who, r.line.face), r.line.who === 'wren' ? 'left' : 'right', typedOut ? `${input.label('interact')} continue` : `${input.label('interact')} skip`);
+        drawDialogue(ctx, { name: speakerName(r.line.who), text: r.line.text, choices: [] }, mode.typed, 0, portraitFor(r.line.who, r.line.face), r.line.who === 'wren' ? 'left' : 'right', typedOut ? `${input.label('interact')} continue` : `${input.label('interact')} skip`, dialogueOnTop());
       } else if (r.choices) {
-        drawDialogue(ctx, { name: 'Wren', text: '', choices: r.choices.map((c) => ({ label: c.label, enabled: true })) }, 0, mode.sel, portraitFor('wren', 'neutral'), 'left', `${input.label('up')}/${input.label('down')} choose  ${input.label('interact')} select`);
+        drawDialogue(ctx, { name: 'Wren', text: '', choices: r.choices.map((c) => ({ label: c.label, enabled: true })) }, 0, mode.sel, portraitFor('wren', 'neutral'), 'left', `${input.label('up')}/${input.label('down')} choose  ${input.label('interact')} select`, dialogueOnTop());
       }
       break;
     }
@@ -770,7 +776,7 @@ if (import.meta.env.DEV) {
       const band = world.bandLevel.indexOf(li) + sc;
       const p = game.player;
       p.body.x = tx * 8 - 1;
-      p.body.y = (band * 34 + ty + 1) * 8 - 18;
+      p.body.y = (band * 34 + ty + 1) * 8 - TUNING.bodyH;
       p.body.remX = p.body.remY = 0;
       p.vx = p.vy = 0;
       p.state = 'ground';
