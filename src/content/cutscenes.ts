@@ -96,6 +96,30 @@ export const SCENES: Record<string, Scene> = {
       { fade: 'in' },
     ],
   },
+  /** Level 12's campfire, the end of Act IV and the lowest point: the Crow admits Maren sent it. */
+  fire4: {
+    id: 'fire4',
+    steps: [
+      { move: 'wren', to: 3 },
+      { pose: 'wren', frame: 'sit' },
+      { wait: 50 },
+      { spawn: 'crow', sprite: 'crow', at: [8, 0], dir: -1 },
+      { say: 'They whisper what I said. The faceless ones. In my voice.', who: 'wren', face: 'crying' },
+      { say: 'I know. I have heard them.', who: 'crow', face: 'sad' },
+      { say: 'Why are you here? Really. Every fire, there you are.', who: 'wren', face: 'angry' },
+      { say: '...', who: 'crow', face: 'serious' },
+      { say: 'She sent me. Ten years ago. "Look after my child," she said. So I flew down, and I watched you grow up from the roof of your house.', who: 'crow', face: 'sad' },
+      { say: 'You leave the lamp in the window every night. I have seen it every night.', who: 'crow', face: 'sad' },
+      { say: 'She sent you. She left, and then she sent you.', who: 'wren', face: 'crying' },
+      { say: 'She never stopped carrying you. That is the trouble. She cannot put you down either.', who: 'crow', face: 'serious' },
+      { say: 'The Seal is the last of them. Then it is the ice, and the top, and her.', who: 'crow', face: 'sad' },
+      { fade: 'out' },
+      { pose: 'wren', frame: '' },
+      { remove: 'crow' },
+      { set: 'act4done' },
+      { fade: 'in' },
+    ],
+  },
   summit: {
     id: 'summit',
     steps: [

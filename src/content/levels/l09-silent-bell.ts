@@ -22,7 +22,7 @@ export const L09: LevelDef = {
     n: { kind: 'object', object: 'note', props: { id: 'note9' } },
   },
   entry: [2, 50, 32],
-  exit: [0, 45, 7],
+  exit: [0, 45, 6],
   load: 7,
   needs: ['claws', 'hook'],
   screens: [
@@ -39,7 +39,7 @@ export const L09: LevelDef = {
       [19, 25, 1, 1, 's'],
       [40, 20, 6, 1, '#'],
       [28, 14, 6, 1, '#'],
-      [42, 8, 8, 1, '#'], // the exit
+      [42, 7, 8, 1, '#'], // the exit
     ]),
     // the middle: the great bell that rings by itself, and what sits on it; Maren's ninth note
     blockout([

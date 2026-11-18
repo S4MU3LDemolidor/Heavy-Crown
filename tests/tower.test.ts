@@ -80,4 +80,20 @@ describe('the tower', () => {
     expect(game.scares.map((s) => s.id)).toContain('bellfigure');
     expect(game.sceneTriggers.map((t) => t.id)).toContain('fire3');
   });
+
+  it("puts Act IV's things where the story needs them", () => {
+    expect(itemLevels('lantern')).toEqual([10]);
+    expect(itemLevels('pickaxe')).toEqual([11]);
+    expect(itemLevels('bone_key')).toEqual([12]);
+    expect(itemLevels('seal')).toEqual([12]);
+    expect(game.cracked.length).toBeGreaterThan(0);
+    expect(game.lifts.map((l) => [levelAt(Math.floor(l.y / 8) - 1), l.order])).toEqual(expect.arrayContaining([[12, 4]]));
+    expect(game.scares.map((s) => s.id)).toEqual(expect.arrayContaining(['lanternface', 'behindyou']));
+    expect(game.npcs.filter((n) => n.id === 'hollow').length).toBeGreaterThanOrEqual(3);
+    expect(game.sceneTriggers.map((t) => t.id)).toContain('fire4');
+  });
+
+  it('never gives a legend letter that the map already uses for a tile or object', () => {
+    for (const l of LEVELS) for (const k of Object.keys(l.legend)) expect('# .~iH@=C%&*'.includes(k), `level ${l.id} legend '${k}'`).toBe(false);
+  });
 });

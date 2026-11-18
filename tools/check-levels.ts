@@ -68,6 +68,9 @@ const RULES: { id: number; run: () => void }[] = [
   // Act III
   { id: 8, run: () => check('level 8: the door is sealed until the loft is rung', 8, byId(8).entry!, { id: 8, cell: byId(8).exit! }, { open: 'keys', moves: ['claws', 'hook'] }, false) },
   { id: 9, run: () => check('level 9: the Bell Door guards the idol', 9, byId(9).entry!, { id: 9, cell: [2, 5, 15] }, { open: 'none', moves: ['claws', 'hook'] }, false) },
+  // Act IV
+  { id: 11, run: () => check('level 11: the cracked wall cannot be bypassed', 11, byId(11).entry!, { id: 11, cell: byId(11).exit! }, { open: 'none', moves: ['claws', 'hook'] }, false) },
+  { id: 12, run: () => check('level 12: the bone door guards the Seal', 12, byId(12).entry!, { id: 12, cell: [0, 6, 25] }, { open: 'none', moves: ['claws', 'hook'] }, false) },
 ];
 for (const r of RULES) if (!only.size || only.has(r.id)) r.run();
 

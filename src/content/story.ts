@@ -21,7 +21,20 @@ export const NOTES: Record<string, { title: string; text: string }> = {
   note7: { title: "Maren's note", text: 'The bells ring when you land on them, like someone counting. I counted with them. One for each year old you would be by the time I came home.' },
   note8: { title: "Maren's note", text: 'I asked the ringer to call you if I never came back. It is the worst thing I have done in this tower, and I have done it twice: I left you, and then I called you after me.' },
   note9: { title: "Maren's note", text: 'The Scepter. Too heavy to carry higher today, so I sat beside it and cried until the great bell rang by itself. Something was sitting on it. It looked at me the way you did when I put my boots on.' },
+  // Act IV
+  note10: { title: "Maren's note", text: 'I am leaving my lantern here, burning, so I can find my way back down. I do not think I am coming back down. Leave it burning anyway.' },
+  note11: { title: "Maren's note", text: 'The faceless ones whisper. Not their words. Mine. Everything I should have said to you, and the one thing you said to me.' },
+  note12: { title: "Maren's note", text: 'Sent the crow down to you today. It argued. It is the only one up here who argues. Look after my child, I told it. It said it would, and that it would complain the whole time.' },
 };
+
+/** What the Hollow Ones whisper when they reach Wren (remake spec 2.3): Wren's own words, and the tower's. */
+export const WHISPERS = [
+  '...if you go...',
+  "...don't ever come back...",
+  '...what are you carrying...',
+  "...she isn't coming home...",
+  "...put it down. you can't, can you...",
+];
 
 /** The fifteen levels' names (remake spec section 4.2). */
 export const LEVEL_NAMES: Record<number, string> = {

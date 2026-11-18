@@ -99,6 +99,27 @@ export const NPCS: Record<string, NpcDef> = {
           { id: 'd', text: 'Do not ask me that. Do not ask the pile that either. The pile does not know.', face: 'scared' },
         ],
       },
+      {
+        id: 'oskar-11-oil',
+        at: 'l11',
+        if: { notFlag: 'lanternOil' },
+        nodes: [
+          { id: 'a', text: 'You again. Up here, in the dark, and you again. You smell of lamp smoke. Hers, is it?', face: 'suspicious', next: 'b' },
+          {
+            id: 'b',
+            text: 'Oil. Good oil, from the pile. Your little light will burn twice as far. Fifty gold.',
+            face: 'greedy',
+            choices: [
+              { label: 'Buy Lantern Oil (50 gold)', if: { gold: 50 }, do: [{ pay: 50 }, { set: 'lanternOil' }], next: 'c' },
+              { label: 'What are the faceless ones?', next: 'd' },
+              { label: 'No.' },
+            ],
+          },
+          { id: 'c', text: 'There. Now you can see what is behind you. You will wish you could not.', face: 'greedy' },
+          { id: 'd', text: 'Climbers who put everything down. Everything. Even the part that knew their name. Do not do that. Keep a little pile.', face: 'scared' },
+        ],
+      },
+      { id: 'oskar-11', at: 'l11', nodes: [{ id: 'a', text: 'The pile and I are not afraid of the dark. The pile is very brave.', face: 'scared' }] },
     ],
   },
   nell: {

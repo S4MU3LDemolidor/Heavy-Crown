@@ -18,7 +18,7 @@ import { dimScreen, drawTextCentered, UI } from './ui/draw';
 import { drawDialogue, drawPicker } from './ui/dialogue';
 import { DialogueRunner } from './game/story';
 import { ITEMS } from './content/items';
-import { ENDINGS, INTRO_LINES, LEVEL_NAMES } from './content/story';
+import { ENDINGS, INTRO_LINES, LEVEL_NAMES, WHISPERS } from './content/story';
 import { SCENES } from './content/cutscenes';
 import { CutsceneRunner, type Ending } from './game/cutscene';
 import { hasPortrait, portrait as paintPortrait } from './art/portraits';
@@ -213,6 +213,8 @@ function checkTitleCard(): void {
 }
 
 let walked = 0;
+/** How many whispers have been heard (they go round the list). */
+let whispered = 0;
 let lastGust = 'calm';
 
 /** Turns this step's events into sound. */
@@ -259,7 +261,10 @@ function playSounds(): void {
       case 'relic': audio.relic(); break;
       case 'crown': audio.crown(); break;
       case 'scare': audio.sting(); break;
-      case 'whisper': audio.whisper(); break;
+      case 'whisper':
+        audio.whisper();
+        toast = { text: WHISPERS[whispered++ % WHISPERS.length], t: 160 };
+        break;
       case 'liftSent': case 'liftTaken': audio.rope(); break;
       case 'paid': audio.pickup(); break;
       case 'echoMove': audio.echo(); break;
