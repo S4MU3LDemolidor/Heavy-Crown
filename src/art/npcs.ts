@@ -112,6 +112,8 @@ export function scareSprites(): Record<string, PixelBuffer> {
   if (!scareCache) {
     scareCache = {};
     for (const [k, rows] of Object.entries(SCARE_GRIDS)) scareCache[k] = outlined(rows);
+    // the remake's scares show a Hollow One at the new scale, not the MVP's small figure
+    scareCache.figure = castSprites().hollow.frames[0];
   }
   return scareCache;
 }

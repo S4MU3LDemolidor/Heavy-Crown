@@ -1,8 +1,8 @@
 # Heavy Crown
 
-A browser tower climber about weight. Climb an ancient tower one charged jump at a time; everything you carry makes your jumps shorter, and anything you put down stays where you left it. Bring the Orb, the Scepter and the Seal to the summit altar to lift the crown and bring back the dawn.
+A browser tower climber about weight, and about what you carry. Ten years ago Maren climbed the tower to bring back the dawn and never came home; the night she left, her child Wren told her not to come back. Tonight the summit bell rings, and Wren climbs with her old pack and the words they cannot put down. Every item makes your jumps shorter, and anything you put down stays where you left it. Bring the Orb, the Scepter and the Seal to the altar at the summit, and choose what to let go of.
 
-Fifteen hand-made levels in five acts (the remake, in progress on the `remake` branch) (the Overgrown Base, the Drowned Cistern, the Bell Hall, the Lightless Floors, the Frozen Spire), with Maren's notes, a cast of strangers who trade in weight, bucket lifts, a few earned scares, and two new ways to climb that weigh something too: the Climbing Claws and the Grappling Hook.
+Fifteen hand-made levels in five acts (the Overgrown Base, the Drowned Cistern, the Bell Hall, the Lightless Floors, the Frozen Spire): Maren's fifteen notes, a cast with portraits and their own troubles (the Crow, Oskar the Hoarder, Nell of the Cistern, the Bellringer, the Hollow Ones, the Old King), campfire talks at the end of each act, a memory of the night Maren left, a few earned scares, the Climbing Claws and the Grappling Hook, a four-bell tune, and two endings.
 
 ## Play
 
@@ -45,10 +45,10 @@ Each level has its own ambient track in `public/audio/<theme>.mp3` (`title`, `ov
 ## Layout
 
 - `src/game/` — pure game logic (no DOM): physics, player, weight, items, world objects, levels, climbability search.
-- `src/art/` — all art, painted in code into pixel buffers: climber, items, terrain, sky and parallax, font.
+- `src/art/` — all art, hand-pixeled in code into pixel buffers: Wren (`climber.ts`), the cast (`cast.ts`), dialogue portraits (`portraits.ts`, `sitters/`), story props (`props.ts`), items, terrain, sky and parallax, font.
 - `src/render/` — scene, lighting, fog, particles, foliage, pixelfx effects.
 - `src/ui/` — HUD, inventory, notes, menus, map, journal, ending.
-- `src/content/` — themes, items, story and NPC scripts, the levels. The 15 levels are hand-made in `src/content/levels/lNN-*.ts`.
+- `src/content/` — themes, items, story (notes, whispers, endings), NPC scripts, cutscenes (`cutscenes.ts`), the levels. The 15 levels are hand-made in `src/content/levels/lNN-*.ts` from `blockout()` rectangles.
 - `docs/superpowers/` — design spec and build plans.
 
 Pixel effects for the aurora, light beams and holy moments come from [pixelfx](https://github.com/patch-gg/pixelfx) (MIT), vendored in `src/vendor/pixelfx`.
