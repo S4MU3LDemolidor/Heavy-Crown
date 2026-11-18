@@ -6,8 +6,7 @@
  */
 import { LEVELS } from '../src/content/levels';
 import type { LevelDef } from '../src/game/level';
-import { reaches, reachOpts, type Move } from './levelgen/gen';
-import { SPECS } from './levelgen/specs';
+import { reaches, reachOpts, type Move } from './reachLib';
 
 type Cell = [screen: number, tx: number, ty: number];
 type Open = 'all' | 'keys' | 'none';
@@ -50,8 +49,7 @@ for (const l of LEVELS) {
   const to = next ? { id: next.id, cell: next.entry! } : { id: l.id, cell: l.exit! };
   const what = [`${l.load} st`, ...(l.needs ?? []), ...(cloak ? ['fur cloak'] : [])].join(', ');
   check(`level ${l.id}: climbs ${next ? `into level ${next.id}` : 'to the summit'} carrying ${what}`, l.id, l.entry!, to, { cloak }, true);
-  const spec = SPECS.find((s) => s.id === l.id);
-  for (const m of spec?.requires ?? []) {
+  for (const m of l.requires ?? []) {
     check(`level ${l.id}: cannot be climbed without the ${m}`, l.id, l.entry!, to, { moves: (l.needs ?? []).filter((x) => x !== m), cloak }, false);
   }
 }

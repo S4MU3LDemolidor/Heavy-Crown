@@ -23,6 +23,8 @@ export interface LevelDef {
   /** The load (stones) the route must support, and the items it needs. */
   load?: number;
   needs?: ('claws' | 'hook' | 'crampons')[];
+  /** Moves the climb cannot be done without (the checker proves the route fails without each). */
+  requires?: ('claws' | 'hook' | 'crampons')[];
 }
 
 export interface Spawn {
