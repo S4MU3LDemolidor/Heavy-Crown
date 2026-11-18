@@ -75,6 +75,27 @@ export const SCENES: Record<string, Scene> = {
       { fade: 'in' },
     ],
   },
+  /** Level 9's campfire, the end of Act III: Wren is angry at Maren. */
+  fire3: {
+    id: 'fire3',
+    steps: [
+      { move: 'wren', to: 3 },
+      { pose: 'wren', frame: 'sit' },
+      { wait: 40 },
+      { spawn: 'crow', sprite: 'crow', at: [8, 0], dir: -1 },
+      { say: 'She called me. Ten years of nothing, and then she rings for me like a servant.', who: 'wren', face: 'angry' },
+      { say: 'She left me a lamp in the window and a bell to wait for, and now I am carrying her relics up her tower.', who: 'wren', face: 'angry' },
+      { say: 'You are allowed to be angry. Fires are good for it. They burn anyway.', who: 'crow', face: 'serious' },
+      { say: 'What if I get to the top and I do not want to see her?', who: 'wren', face: 'sad' },
+      { say: 'Then you will have climbed a very long way to find that out. Most people do.', who: 'crow', face: 'sad' },
+      { say: 'The Scepter is heavy too. Send it up or carry it. Either way, it goes up.', who: 'crow', face: 'smug' },
+      { fade: 'out' },
+      { pose: 'wren', frame: '' },
+      { remove: 'crow' },
+      { set: 'act3done' },
+      { fade: 'in' },
+    ],
+  },
   summit: {
     id: 'summit',
     steps: [

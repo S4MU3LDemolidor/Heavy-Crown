@@ -76,6 +76,9 @@ export interface Bell {
   h: number;
   /** Frames of swing left after ringing. */
   swing: number;
+  /** Its place in a tune (1 = first), and the tune's name: ringing a tune's bells in order sets flag `tune:<name>`. */
+  note?: number;
+  tune?: string;
 }
 
 export interface Altar {
@@ -270,7 +273,17 @@ export class Game implements PlayerWorld, StoryHost {
       const ys = cells.map((c) => c[1]);
       const x0 = Math.min(...xs);
       const y0 = Math.min(...ys);
-      return { id: `${x0},${y0}`, x: x0 * TILE, y: y0 * TILE, w: (Math.max(...xs) - x0 + 1) * TILE, h: (Math.max(...ys) - y0 + 1) * TILE, swing: 0 };
+      const spawn = this.world.spawns.find((s) => s.entry.kind === 'object' && s.entry.object === 'bell' && cells.some(([tx, ty]) => tx === s.tx && ty === s.ty));
+      const props = spawn?.entry.kind === 'object' ? (spawn.entry.props ?? {}) : {};
+      return {
+        id: `${x0},${y0}`,
+        x: x0 * TILE,
+        y: y0 * TILE,
+        w: (Math.max(...xs) - x0 + 1) * TILE,
+        h: (Math.max(...ys) - y0 + 1) * TILE,
+        swing: 0,
+        ...(props.note !== undefined ? { note: Number(props.note), tune: String(props.tune) } : {}),
+      };
     });
     // gates are vertical runs of gate cells
     for (const cell of gateCells.values()) {
@@ -504,10 +517,26 @@ export class Game implements PlayerWorld, StoryHost {
       const pb = this.player.body;
       for (const b of this.bells) {
         if (!rectsOverlap(pb.x - 2, pb.y - 2, pb.w + 4, pb.h + 4, b.x, b.y, b.w, b.h)) continue;
-        b.swing = 40;
-        this.events.push({ type: 'bell', x: b.x + b.w / 2, y: b.y + b.h / 2, big: e.type === 'land' && e.fall > 40 });
+        this.ringBell(b, e.type === 'land' && e.fall > 40);
       }
     }
+  }
+
+  /** How far into each tune the bells have been rung in order. */
+  private tuneAt = new Map<string, number>();
+
+  /** Rings a bell; a bell in a tune moves the tune on (or starts it over), and the last note sets `tune:<name>`. */
+  ringBell(b: Bell, big = false): void {
+    b.swing = 40;
+    this.events.push({ type: 'bell', x: b.x + b.w / 2, y: b.y + b.h / 2, big });
+    if (!b.tune || b.note === undefined) return;
+    const at = this.tuneAt.get(b.tune) ?? 0;
+    const next = b.note === at + 1 ? at + 1 : b.note === 1 ? 1 : 0;
+    const length = this.bells.filter((x) => x.tune === b.tune).length;
+    if (next === length) {
+      this.flags.add(`tune:${b.tune}`);
+      this.tuneAt.set(b.tune, 0);
+    } else this.tuneAt.set(b.tune, next);
   }
 
   /** Stones resting on a strip of floor whose top is at y, from x0 to x1 (pixels). */

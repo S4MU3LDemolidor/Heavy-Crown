@@ -5,9 +5,12 @@ import { L03 } from './l03-hoarders-hollow';
 import { L04 } from './l04-sunken-gate';
 import { L05 } from './l05-nells-landing';
 import { L06 } from './l06-orbs-crown';
+import { L07 } from './l07-bell-hall';
+import { L08 } from './l08-ringers-loft';
+import { L09 } from './l09-silent-bell';
 
 /** The tower's levels, bottom to top (remake: 15 hand-made levels, 3 per act; filled in by plans 4–8). */
-export const LEVELS: LevelDef[] = [L01, L02, L03, L04, L05, L06];
+export const LEVELS: LevelDef[] = [L01, L02, L03, L04, L05, L06, L07, L08, L09];
 
 /** Levels per act: Act n is levels (n-1)*3+1 .. n*3. */
 export const LEVELS_PER_ACT = 3;

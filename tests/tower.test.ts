@@ -68,4 +68,16 @@ describe('the tower', () => {
     expect(game.scares.map((s) => s.id)).toContain('hand');
     expect(game.sceneTriggers.map((t) => t.id)).toContain('fire2');
   });
+
+  it("puts Act III's things where the story needs them", () => {
+    expect(itemLevels('hook')).toEqual([7]);
+    expect(itemLevels('bell_key')).toEqual([8]);
+    expect(itemLevels('scepter')).toEqual([9]);
+    expect(itemLevels('idol')).toEqual([9]);
+    expect(game.bells.filter((b) => b.tune === 'loft').map((b) => b.note).sort()).toEqual([1, 2, 3, 4]);
+    expect(game.gates.some((g) => g.flag === 'tune:loft')).toBe(true);
+    expect(game.lifts.map((l) => [levelAt(Math.floor(l.y / 8) - 1), l.order])).toEqual(expect.arrayContaining([[9, 3]]));
+    expect(game.scares.map((s) => s.id)).toContain('bellfigure');
+    expect(game.sceneTriggers.map((t) => t.id)).toContain('fire3');
+  });
 });

@@ -120,3 +120,42 @@ describe('the remake story systems', () => {
     expect(b.flags.has('ending:holdOn')).toBe(true);
   });
 });
+
+describe('the bell tune', () => {
+  /** One screen, floor on row 33, four bells along it (notes 1-4 of tune 'loft'), a gate sealed by the tune. */
+  function belfry(): Game {
+    let s = blankScreen();
+    s[33] = '#'.repeat(60);
+    s = put(s, 4, 32, '@');
+    for (const [x, ch] of [[10, '1'], [20, '2'], [30, '3'], [40, '4']] as const) for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) s = put(s, x + dx, 26 + dy, ch);
+    for (let y = 29; y <= 32; y++) s = put(s, 50, y, 'G');
+    const bell = (note: number) => ({ kind: 'object' as const, object: 'bell', props: { note, tune: 'loft' } });
+    const level: LevelDef = {
+      id: 1,
+      theme: 'bells',
+      screens: [s],
+      legend: { '1': bell(1), '2': bell(2), '3': bell(3), '4': bell(4), G: { kind: 'object', object: 'gate', props: { flag: 'tune:loft' } } },
+    };
+    return new Game(buildWorld([level]), {});
+  }
+  const ring = (g: Game, x: number) => g.ringBell(g.bells.find((b) => b.x === x * 8)!);
+
+  it('opens the sealed gate when the bells are rung in the order of the tune', () => {
+    const g = belfry();
+    expect(g.bells.map((b) => b.note)).toEqual([1, 2, 3, 4]);
+    for (const x of [10, 20, 30]) ring(g, x);
+    expect(g.flags.has('tune:loft')).toBe(false);
+    ring(g, 40);
+    expect(g.flags.has('tune:loft')).toBe(true);
+    g.step({ left: false, right: false, jump: false });
+    expect(g.gates[0].open).toBe(true);
+  });
+
+  it('a wrong bell starts the tune over', () => {
+    const g = belfry();
+    for (const x of [10, 20, 40, 30, 40]) ring(g, x);
+    expect(g.flags.has('tune:loft')).toBe(false);
+    for (const x of [10, 20, 30, 40]) ring(g, x);
+    expect(g.flags.has('tune:loft')).toBe(true);
+  });
+});

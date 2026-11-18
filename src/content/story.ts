@@ -17,6 +17,10 @@ export const NOTES: Record<string, { title: string; text: string }> = {
   note4: { title: "Maren's note", text: 'The water down here is cold enough to stop a heart. Something lives in it. It took hold of my ankle and let go again, as if it were only checking what I weighed.' },
   note5: { title: "Maren's note", text: "Sent my books up in Nell's bucket today, and your drawing with them, the house with the lamp in the window. I could not carry it any further. I told myself it was the paper that was heavy." },
   note6: { title: "Maren's note", text: 'The Orb. It hums like a hive. The altar wants three of these and I can barely carry one. I keep hearing what you said that night. You had every right to say it.' },
+  // Act III
+  note7: { title: "Maren's note", text: 'The bells ring when you land on them, like someone counting. I counted with them. One for each year old you would be by the time I came home.' },
+  note8: { title: "Maren's note", text: 'I asked the ringer to call you if I never came back. It is the worst thing I have done in this tower, and I have done it twice: I left you, and then I called you after me.' },
+  note9: { title: "Maren's note", text: 'The Scepter. Too heavy to carry higher today, so I sat beside it and cried until the great bell rang by itself. Something was sitting on it. It looked at me the way you did when I put my boots on.' },
 };
 
 /** The fifteen levels' names (remake spec section 4.2). */

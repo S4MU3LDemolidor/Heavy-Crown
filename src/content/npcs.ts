@@ -80,6 +80,25 @@ export const NPCS: Record<string, NpcDef> = {
         ],
       },
       { id: 'oskar-3-after', at: 'l3', nodes: [{ id: 'a', text: 'Go away. The pile is resting.', face: 'suspicious' }] },
+      {
+        id: 'oskar-8',
+        at: 'l8',
+        nodes: [
+          { id: 'a', text: 'What? I have always been here. Always. I did not climb. I do not climb. I am simply... here.', face: 'suspicious', next: 'b' },
+          {
+            id: 'b',
+            text: 'Rope. Good rope. Thirty gold.',
+            face: 'greedy',
+            choices: [
+              { label: 'Buy a Rope Coil (30 gold)', if: { gold: 30 }, do: [{ pay: 30 }, { give: 'rope' }], next: 'c' },
+              { label: 'How did you get up here?', next: 'd' },
+              { label: 'No.' },
+            ],
+          },
+          { id: 'c', text: 'Gold for the pile. Rope for the climber. Everyone wins. Mostly me.', face: 'greedy' },
+          { id: 'd', text: 'Do not ask me that. Do not ask the pile that either. The pile does not know.', face: 'scared' },
+        ],
+      },
     ],
   },
   nell: {
@@ -133,7 +152,26 @@ export const NPCS: Record<string, NpcDef> = {
     sprite: 'bellringer',
     voice: { pitch: 240, wave: 'sine', rate: 2 },
     behavior: 'static',
-    conversations: [],
+    conversations: [
+      {
+        id: 'br-8-first',
+        at: 'l8',
+        once: true,
+        nodes: [
+          { id: 'a', text: 'Steps. Light ones, then heavier. You walk like her.', face: 'serene', next: 'b' },
+          { id: 'b', who: 'wren', text: 'You can hear me?', face: 'surprised', next: 'c' },
+          { id: 'c', text: 'I hear nothing. I feel the floor. The bells tell me who comes.', face: 'serene', next: 'd' },
+          { id: 'd', who: 'wren', text: 'The summit bell rang three nights ago. Was that you?', next: 'e' },
+          { id: 'e', text: 'It was.', face: 'guilty', next: 'f' },
+          { id: 'f', who: 'wren', text: 'Then she never made it. She is not up there waiting. You rang it for nothing.', face: 'angry', next: 'g' },
+          { id: 'g', text: 'Not for nothing. She asked me to. Ten years ago she stood where you stand and said, "When my child is grown, ring it. They will come."', face: 'sorrowful', next: 'h' },
+          { id: 'h', who: 'wren', text: 'She called me. She called me up here.', face: 'crying', next: 'i' },
+          { id: 'i', text: 'She did not know how to come down alone. Forgive me, or do not. The way up is shut until the loft is rung.', face: 'guilty', next: 'j' },
+          { id: 'j', text: 'Start at the third bell from my rope. Back to the first. Out to the fourth. Home to the second. It is the way she climbed.', face: 'serene' },
+        ],
+      },
+      { id: 'br-8', at: 'l8', nodes: [{ id: 'a', text: 'The third bell from my rope, then the first, then the fourth, then the second. Jump into them, child. They do not mind.', face: 'serene' }] },
+    ],
   },
   hollow: {
     id: 'hollow',
