@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PixelBuffer } from '../src/art/buffer';
+import { BODY_FRAMES, buildClimberSheet, FEET_X, FEET_Y, FRAME_H, FRAME_W, OUTLINE, OUTLINE_MIX, PALETTE } from '../src/art/climber';
 import { alpha, hex, mix, red, toHex } from '../src/art/color';
 import { parseGrid } from '../src/art/grid';
 import { bayer, fbm, hash2, rng, valueNoise } from '../src/art/noise';
@@ -94,5 +95,69 @@ describe('selective outline', () => {
     expect(left & 255).toBeGreaterThan((left >>> 16) & 255); // the red's outline stays reddish
     expect((right >>> 16) & 255).toBeGreaterThan(right & 255); // the blue's outline stays bluish
     expect(b.get(1, 1)).toBe(hex('#d6453b')); // the figure itself is untouched
+  });
+});
+
+describe("Wren's sheet", () => {
+  const { sheet, frames } = buildClimberSheet();
+  /** Bounding box and colour count of one frame's opaque pixels. */
+  const measure = (tier: number, name: (typeof BODY_FRAMES)[number]) => {
+    const f = frames[tier][name];
+    let x0 = FRAME_W, x1 = -1, y0 = FRAME_H, y1 = -1;
+    const colours = new Set<number>();
+    for (let y = 0; y < FRAME_H; y++)
+      for (let x = 0; x < FRAME_W; x++) {
+        const c = sheet.get(f.sx + x, f.sy + y);
+        if (!(c >>> 24)) continue;
+        colours.add(c);
+        x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+      }
+    return { w: x1 - x0 + 1, h: y1 - y0 + 1, bottom: y1, colours: colours.size };
+  };
+
+  it('is one row per load tier and one column per body frame, at the remake frame size', () => {
+    expect([FRAME_W, FRAME_H]).toEqual([40, 44]);
+    expect(sheet.w).toBe(BODY_FRAMES.length * FRAME_W);
+    expect(sheet.h).toBe(5 * FRAME_H);
+  });
+
+  it('stands Wren about 30 px tall with the feet on FEET_Y', () => {
+    const m = measure(0, 'idle0');
+    expect(m.h).toBeGreaterThanOrEqual(29);
+    expect(m.h).toBeLessThanOrEqual(33);
+    expect(m.bottom).toBe(FEET_Y);
+  });
+
+  it('breathes: idle0 and idle1 differ', () => {
+    const a = frames[0].idle0;
+    const b = frames[0].idle1;
+    let diff = 0;
+    for (let y = 0; y < FRAME_H; y++) for (let x = 0; x < FRAME_W; x++) if (sheet.get(a.sx + x, a.sy + y) !== sheet.get(b.sx + x, b.sy + y)) diff++;
+    expect(diff).toBeGreaterThan(4);
+  });
+
+  it('uses only its palette (at most 30 colours) and one outline tone of each', () => {
+    expect(PALETTE.length).toBeLessThanOrEqual(30);
+    const allowed = new Set([...PALETTE, ...PALETTE.map((c) => mix(c, OUTLINE, OUTLINE_MIX))]);
+    for (const tier of [0, 2, 4]) {
+      const f = frames[tier].idle0;
+      for (let y = 0; y < FRAME_H; y++)
+        for (let x = 0; x < FRAME_W; x++) {
+          const c = sheet.get(f.sx + x, f.sy + y);
+          if (c >>> 24) expect(allowed.has(c), `tier ${tier} (${x}, ${y})`).toBe(true);
+        }
+    }
+  });
+
+  it('the pack grows with the load tier', () => {
+    expect(frames[3].idle0.pack[3]).toBeGreaterThan(frames[1].idle0.pack[3]);
+    expect(frames[1].idle0.pack[3]).toBeGreaterThan(frames[0].idle0.pack[3]);
+  });
+
+  it('puts the neck inside the frame, near the top of the body', () => {
+    const [nx, ny] = frames[0].idle0.neck;
+    expect(nx).toBeGreaterThan(FEET_X - 8);
+    expect(nx).toBeLessThan(FEET_X + 8);
+    expect(ny).toBeLessThan(FEET_Y - 15);
   });
 });
