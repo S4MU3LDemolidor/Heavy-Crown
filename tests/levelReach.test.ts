@@ -14,6 +14,10 @@ describe('level objects are within reach', () => {
   for (const c of game.cracked) c.broken = true;
   const footholds = findFootholds(world.grid, game);
 
+  it('finds places to stand', () => {
+    expect(footholds.length).toBeGreaterThan(0);
+  });
+
   /** True if a climber standing somewhere would get the interaction for this object. */
   const reachable = (test: (bx: number, by: number) => boolean) =>
     footholds.some((f) => {
@@ -50,6 +54,11 @@ describe('level objects are within reach', () => {
 
   it.each(game.lifts.map((l) => [l.key, l] as const))('lift station %s can be used', (_key, l) => {
     expect(standNear(l.x, l.y, 16)).toBe(true);
+  });
+
+  it.each(game.sceneTriggers.map((s) => [s.id, s] as const))('scene %s can be started', (_id, s) => {
+    const ok = reachable((bx, by) => bx < s.x + s.w && s.x < bx + TUNING.bodyW && by < s.y + s.h && s.y < by + TUNING.bodyH);
+    expect(ok).toBe(true);
   });
 
   it.each(game.scares.map((s) => [s.id, s] as const))('scare %s can be sprung', (_id, s) => {

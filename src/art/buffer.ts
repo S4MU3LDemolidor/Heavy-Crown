@@ -1,4 +1,4 @@
-import { alpha, blue, green, pack, red, type RGBA } from './color';
+import { alpha, blue, green, mix, pack, red, type RGBA } from './color';
 
 /** An RGBA pixel buffer, row-major, packed as 0xAABBGGRR (same byte order as ImageData). */
 export class PixelBuffer {
@@ -83,6 +83,28 @@ export class PixelBuffer {
       }
     }
     for (const i of mark) this.px[i] = c;
+  }
+
+  /**
+   * Selective outline: every transparent pixel next to an opaque one (4-neighbour) becomes that neighbour's colour
+   * mixed toward `dark` by `k`, so each region is outlined in a dark tone of its own colour (never flat black).
+   */
+  selout(dark: RGBA, k = 0.6): void {
+    const src = this.clone();
+    for (let y = 0; y < this.h; y++) {
+      for (let x = 0; x < this.w; x++) {
+        if (alpha(src.get(x, y)) !== 0) continue;
+        let n = 0;
+        for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]] as const) {
+          const c = src.get(x + dx, y + dy);
+          if (alpha(c) > 127) {
+            n = c;
+            break;
+          }
+        }
+        if (n) this.set(x, y, mix(n, dark, k));
+      }
+    }
   }
 
   clone(): PixelBuffer {

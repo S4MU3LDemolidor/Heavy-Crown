@@ -6,8 +6,10 @@ import { SCREEN_H } from '../game/tuning';
 import type { Game } from '../game/game';
 import { Tile } from '../game/tiles';
 import { TILE, VIEW_H } from '../game/tuning';
-import { liftSprite, npcSprites, scareSprites } from '../art/npcs';
+import { npcSprites, scareSprites } from '../art/npcs';
+import { props, type Prop } from '../art/props';
 import { toCanvas } from './canvas';
+import type { Actor } from '../game/cutscene';
 
 /** Draws the world's objects and items (spec sections 7–8). */
 export class ObjectRenderer {
@@ -18,7 +20,6 @@ export class ObjectRenderer {
   private readonly wood = toCanvas(ladderTile(false));
   private readonly note = toCanvas(NOTE);
   private readonly ring = toCanvas(RING);
-  private readonly lift = toCanvas(liftSprite());
   /** NPC frames: [right-facing, left-facing] per frame. */
   private readonly npc: Record<string, { r: HTMLCanvasElement[]; l: HTMLCanvasElement[]; w: number; h: number }> = {};
   readonly scare: Record<string, HTMLCanvasElement> = {};
@@ -54,8 +55,26 @@ export class ObjectRenderer {
     return this.items[id];
   }
 
-  /** Behind the climber: ladders, hooks, notes, gates. */
+  private readonly props: Record<string, { prop: Prop; r: HTMLCanvasElement[] }> = Object.fromEntries(
+    Object.entries(props()).map(([k, p]) => [k, { prop: p, r: p.frames.map((f) => toCanvas(f)) }]),
+  );
+
+  /** Story props placed as `deco` legend entries, standing on the floor of their cell. */
+  private drawDecos(ctx: CanvasRenderingContext2D, game: Game, camY: number, t: number): void {
+    for (const s of game.world.spawns) {
+      if (s.entry.kind !== 'deco') continue;
+      const d = this.props[s.entry.deco];
+      if (!d) continue;
+      const y = (s.ty + 1) * TILE - d.prop.h + 1 - camY;
+      if (y > VIEW_H || y + d.prop.h < 0) continue;
+      const rate = s.entry.deco === 'fire' ? 7 : 40;
+      ctx.drawImage(d.r[Math.floor((t + s.tx * 13) / rate) % d.r.length], Math.round(s.tx * TILE + TILE / 2 - d.prop.w / 2), y);
+    }
+  }
+
+  /** Behind the climber: story props, ladders, hooks, notes, gates. */
   drawBack(ctx: CanvasRenderingContext2D, game: Game, camY: number, t: number): void {
+    this.drawDecos(ctx, game, camY, t);
     const grid = game.world.grid;
     const ty0 = Math.floor(camY / TILE);
     const ty1 = Math.floor((camY + VIEW_H) / TILE);
@@ -243,9 +262,9 @@ export class ObjectRenderer {
   }
 
   /** NPCs (not the Echo, which the scene draws from the climber's own sprite). */
-  drawNpcs(ctx: CanvasRenderingContext2D, game: Game, camY: number, t: number): void {
+  drawNpcs(ctx: CanvasRenderingContext2D, game: Game, camY: number, t: number, hide?: ReadonlyMap<string, unknown> | null): void {
     for (const n of game.npcs) {
-      if (n.gone) continue;
+      if (n.gone || hide?.has(n.id)) continue;
       const def = game.npcDefs[n.id];
       if (!def || def.behavior === 'echo') continue;
       const art = this.npc[def.sprite];
@@ -256,11 +275,31 @@ export class ObjectRenderer {
       const bob = def.behavior === 'crow' && (t + n.x) % 150 < 6 ? -1 : 0;
       ctx.drawImage((n.facing > 0 ? art.r : art.l)[frame], Math.round(n.x - art.w / 2), y + bob);
     }
+    // Nell's lift stations (the remake's redrawn prop): pulley, rope and bucket, with what waits in the bucket
+    const lift = this.props.lift;
     for (const st of game.lifts) {
-      const y = st.y - this.lift.height + 1 - camY;
-      if (y > VIEW_H || y < -40) continue;
-      ctx.drawImage(this.lift, st.x - 6, y);
-      st.bucket.slice(0, 2).forEach((it, i) => ctx.drawImage(this.items[it.id], st.x - 8 + i * 5, y + 9));
+      const h = lift.prop.h;
+      const y = st.y - h + 1 - camY;
+      if (y > VIEW_H || y + h < 0) continue;
+      const x = Math.round(st.x - lift.prop.w / 2);
+      ctx.drawImage(lift.r[Math.floor((t + st.x) / 40) % lift.r.length], x, y);
+      st.bucket.slice(0, 2).forEach((it, i) => ctx.drawImage(this.items[it.id], x + 9 + i * 5, y + h - 16));
+    }
+  }
+
+  /** A cutscene's actors (all but Wren, who is the climber): NPC sprites by key, memories pale and see-through. */
+  drawActors(ctx: CanvasRenderingContext2D, actors: ReadonlyMap<string, Actor>, camY: number, t: number): void {
+    for (const a of actors.values()) {
+      if (a.id === 'wren') continue;
+      const art = this.npc[a.sprite];
+      if (!art) continue;
+      const y = Math.round(a.y) - art.h + 1 - camY;
+      if (y > VIEW_H || y + art.h < 0) continue;
+      const frame = a.pose === 'still' ? 0 : (t + Math.round(a.x) * 7) % 90 < 45 ? 0 : 1;
+      ctx.save();
+      if (a.ghost) ctx.globalAlpha = 0.5 + Math.sin(t * 0.1) * 0.1;
+      ctx.drawImage((a.facing > 0 ? art.r : art.l)[Math.min(frame, art.r.length - 1)], Math.round(a.x - art.w / 2), y);
+      ctx.restore();
     }
   }
 
@@ -294,6 +333,13 @@ export class ObjectRenderer {
       if (r) out.push({ x: it.body.x + 4, y: it.body.y + 2, r, color: it.id === 'lantern' ? '#ffd890' : it.id === 'ruby' ? '#ff6070' : '#ffe8a0' });
     }
     for (const n of game.notes) out.push({ x: n.tx * TILE + 4, y: n.ty * TILE + 3, r: 12, color: '#fff0c8', k: 0.5 });
+    for (const s of game.world.spawns) {
+      if (s.entry.kind !== 'deco') continue;
+      const l = this.props[s.entry.deco]?.prop.light;
+      if (!l) continue;
+      const flicker = s.entry.deco === 'fire' ? Math.sin(game.stats.frames * 0.23 + s.tx) * 4 + Math.sin(game.stats.frames * 0.61) * 2 : 0;
+      out.push({ x: s.tx * TILE + TILE / 2 + l.dx, y: (s.ty + 1) * TILE + l.dy, r: l.r + flicker, color: l.color });
+    }
     const a = game.altar;
     if (a) {
       if (a.placed.length) out.push({ x: a.tx * TILE + 4, y: a.ty * TILE, r: 30 + a.placed.length * 10, color: '#ffe8a0' });

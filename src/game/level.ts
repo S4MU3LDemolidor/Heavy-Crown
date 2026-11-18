@@ -23,6 +23,8 @@ export interface LevelDef {
   /** The load (stones) the route must support, and the items it needs. */
   load?: number;
   needs?: ('claws' | 'hook' | 'crampons')[];
+  /** Moves the climb cannot be done without (the checker proves the route fails without each). */
+  requires?: ('claws' | 'hook' | 'crampons')[];
 }
 
 export interface Spawn {
@@ -98,9 +100,12 @@ export function buildWorld(levels: LevelDef[], opts: { requireStart?: boolean } 
           open[i] = base.open ? 1 : 0;
         } else if (OBJECT_CHARS[ch]) {
           cells[i] = Tile.Empty;
+          open[i] = line[tx - 1] === '.' || line[tx + 1] === '.' ? 1 : 0;
           spawns.push({ char: ch, entry: OBJECT_CHARS[ch], tx, ty });
         } else if (legend[ch]) {
           cells[i] = Tile.Empty;
+          // an object out in the open sky keeps the sky behind it
+          open[i] = line[tx - 1] === '.' || line[tx + 1] === '.' ? 1 : 0;
           spawns.push({ char: ch, entry: legend[ch], tx, ty });
         } else {
           throw new Error(`${where} row ${ry} col ${tx}: unknown character '${ch}'`);

@@ -64,6 +64,7 @@ const GRIDS: Record<ItemId, string[]> = {
   claws: ['', '', '.k.k.k......', '.K.K.K......', '.KIKIK......', '.BBBBB.k.k.k', '.BnnnB.K.K.K', '..BBB..KIKIK', '.......BBBBB', '.......BnnnB', '........BBB.'],
   hook: ['....k.......', '...kIk......', '.k..K..k....', '.Kk.K.kK....', '..KKKKK.....', '....K.......', '....n.......', '...nBn.nnn..', '..nB.Bn...n.', '..nB.Bn..n..', '...nnn..n...'],
   crown: ['', '', '.Y...Y...Y..', '.YY.YYY.YY..', '.GYYGRGYYG..', '.GGYGGGYGG..', '.GrGGTGGrG..', '.GGGGGGGGG..', '.gggggggggg.', '', ''],
+  words: ['', '', '', '...cccccc...', '..cxxxxxxc..', '.cxCxxxxCxc.', '.cxxrrrrxxc.', '.cxxxrrxxxc.', '.cCxxxxxxCc.', '..cCCCCCCc..', '...cccccc...'],
 };
 
 const OUTLINE = hex('#120d18');

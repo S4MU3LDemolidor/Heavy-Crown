@@ -18,6 +18,7 @@ import { Lighting } from './lighting';
 import { ObjectRenderer } from './objects';
 import { PackGear } from './packGear';
 import { Scarf } from './scarf';
+import type { Actor } from '../game/cutscene';
 
 const LAYERS: LayerName[] = ['far', 'mid', 'near'];
 
@@ -55,9 +56,9 @@ export class ClimberAnimator {
         if (p.vy < 1.4) return 'apex';
         return (this.t >> 3) % 2 ? 'fall1' : 'fall0';
       case 'cling':
-        return (Math.floor(p.body.y / 4) & 1) ? 'ladder1' : 'ladder0';
+        return (Math.floor(p.body.y / 6) & 1) ? 'cling1' : 'cling0';
       case 'hang':
-        return p.charge > 0.5 ? 'apex' : 'ladder0';
+        return p.charge > 0.5 ? 'apex' : 'hang';
       case 'pull':
         return 'rise';
       case 'stumble': {
@@ -190,8 +191,15 @@ export class Scene {
     this.scarf.update(nx, ny, player.facing, player.vx, player.vy, this.anim.time);
   }
 
+  /** A cutscene's held pose for the climber (e.g. sitting by the fire), or null. */
+  poseOverride: BodyFrame | null = null;
+  /** A cutscene's actors, drawn over the world (placed NPCs with the same id are hidden meanwhile). */
+  actors: ReadonlyMap<string, Actor> | null = null;
+  /** A cutscene's fade to black, 0..1. */
+  sceneFade = 0;
+
   private frameInfo(p: Player) {
-    return this.climber.frames[loadTier(p.loadout.stones)][this.anim.frame(p)];
+    return this.climber.frames[loadTier(p.loadout.stones)][this.poseOverride ?? this.anim.frame(p)];
   }
 
   private frameX(p: Player): number {
@@ -258,7 +266,8 @@ export class Scene {
     this.drawWater(ctx, camY, t);
     this.objects.drawBack(ctx, game, camY, t);
     this.objects.drawItems(ctx, game, camY);
-    this.objects.drawNpcs(ctx, game, camY, t);
+    this.objects.drawNpcs(ctx, game, camY, t, this.actors);
+    if (this.actors) this.objects.drawActors(ctx, this.actors, camY, t);
     this.drawEchoes(ctx, game, camY, t);
     const carried = game.carried.map((c) => c.id);
     if (!this.hideClimber) this.drawClimber(ctx, player, camY, carried);
@@ -301,6 +310,10 @@ export class Scene {
     this.drawScare(ctx, camY);
     this.drawEdgeHints(ctx, camera, this.anim.time);
     ctx.drawImage(this.vignette, 0, 0);
+    if (this.sceneFade > 0) {
+      ctx.fillStyle = `rgba(4, 3, 8, ${Math.min(1, this.sceneFade)})`;
+      ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    }
   }
 
   /** Maren's Echo: the climber's own sprite, pale and flickering, with her red scarf. */
@@ -468,8 +481,8 @@ export class Scene {
           const px = Math.round(a.x + ((b.x - a.x) * s) / steps);
           const py = Math.round(a.y + ((b.y - a.y) * s) / steps) - camY;
           ctx.fillStyle = '#120d18';
-          ctx.fillRect(px - 1, py, 3, 2);
-          ctx.fillRect(px, py - 1, 1, 4);
+          ctx.fillRect(px - 1, py, 4, 2);
+          ctx.fillRect(px, py - 1, 2, 4);
         }
       }
       for (let i = pts.length - 1; i >= 1; i--) {
@@ -478,8 +491,8 @@ export class Scene {
         for (let s = 0; s <= 3; s++) {
           const px = Math.round(a.x + ((b.x - a.x) * s) / 3);
           const py = Math.round(a.y + ((b.y - a.y) * s) / 3) - camY;
-          ctx.fillStyle = i >= pts.length - 1 ? '#962838' : '#d6453b';
-          ctx.fillRect(px, py, 1, 2);
+          ctx.fillStyle = i >= pts.length - 1 ? '#9c2338' : '#d8463b';
+          ctx.fillRect(px, py, 2, 2);
         }
       }
     }

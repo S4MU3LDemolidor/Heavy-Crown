@@ -3,439 +3,1270 @@ import { hex, type RGBA } from './color';
 import { parseGrid } from './grid';
 
 /**
- * The climber: a small hooded pilgrim with a red scarf (spec section 10).
- * Frames are composed from hand-placed parts (facing right), then leaned and packed per load tier,
- * then outlined. Everything is built once at load into one sheet.
+ * Wren, the pilgrim (remake spec section 3). Hand-pixeled full-figure frames, facing right, with a pack per
+ * load tier and a selective outline. Plan 1 draws the idle pose; plan 2 draws the other poses, which show idle0
+ * until then.
  */
 
-export const FRAME_W = 28;
-export const FRAME_H = 30;
-/** Feet sit on this row; the body is centered on FEET_X. */
-export const FEET_Y = 29;
-export const FEET_X = 15;
+export const FRAME_W = 40;
+export const FRAME_H = 44;
+/** Feet sit on this row; the body is centred on FEET_X. */
+export const FEET_Y = 43;
+export const FEET_X = 20;
 
+/** Hue-shifted ramps: shadows lean blue-purple, highlights lean warm. Letters are the grid legend. */
 const PAL: Record<string, RGBA> = {
-  k: hex('#262c48'), // cloak darkest
-  c: hex('#3b4a74'), // cloak
-  C: hex('#566ca0'), // cloak light
-  h: hex('#7d97c8'), // cloak rim light
-  s: hex('#f2c49c'), // skin
-  S: hex('#c88c6c'), // skin shade
-  e: hex('#1a1220'), // eye
-  r: hex('#d6453b'), // scarf
-  R: hex('#962838'), // scarf dark
-  l: hex('#f78c5c'), // scarf light
-  p: hex('#3a2e40'), // trousers
-  P: hex('#4e4058'), // trousers light
-  b: hex('#4a3024'), // boot
-  B: hex('#70482e'), // boot light
-  w: hex('#7a5532'), // strap leather
-  W: hex('#a8783e'), // buckle
+  // cloak (blue-grey), darkest to rim light
+  a: hex('#1b1d3a'), b: hex('#2a3263'), c: hex('#3d4c86'), d: hex('#5a6fae'), e: hex('#8aa3d4'),
+  // skin, shadow to highlight
+  s: hex('#7a3e48'), t: hex('#c27862'), u: hex('#e8a982'), v: hex('#f8d3ac'),
+  // scarf (Maren's red), dark to light
+  q: hex('#5a1630'), r: hex('#9c2338'), R: hex('#d8463b'), l: hex('#f6905e'),
+  // trousers and boots
+  p: hex('#2a2238'), P: hex('#433a5c'), o: hex('#38221e'), O: hex('#5f3c2b'),
+  // leather strap and brass buckle
+  w: hex('#5a3424'), W: hex('#e2b45c'),
+  // eye and hair under the hood
+  k: hex('#120c1c'), h: hex('#4a2e2a'),
 };
-export const OUTLINE = hex('#120d18');
-
-/** Pack colors. */
-const PACK: Record<string, RGBA> = {
-  d: hex('#4a3826'), // pack dark
-  m: hex('#7a6040'), // pack canvas
-  M: hex('#a08458'), // pack light
-  L: hex('#c8ac78'), // pack highlight
-  w: hex('#5a3c26'), // straps
-  W: hex('#c89a4a'), // buckles
-  g: hex('#3e4a34'), // bedroll green
-  G: hex('#5a6a44'), // bedroll light
+/** Pack canvas, straps and bedroll. */
+const PACK_PAL: Record<string, RGBA> = {
+  m: hex('#3b2a24'), n: hex('#6b4f37'), N: hex('#9c7b52'), L: hex('#cdab76'),
+  w: hex('#5a3424'), W: hex('#e2b45c'), g: hex('#33402e'), G: hex('#56683f'),
 };
+/** The colour every outline leans toward (a deep violet, never black). */
+export const OUTLINE = hex('#120d24');
+/** Every colour Wren is drawn with (the selective outline adds one darker tone of each). */
+export const PALETTE: RGBA[] = [...Object.values(PAL), ...Object.values(PACK_PAL)];
+/** How far each outline tone leans toward OUTLINE. */
+export const OUTLINE_MIX = 0.6;
 
-const part = (rows: string[], pal: Record<string, RGBA> = PAL) => parseGrid(rows, pal);
+const part = (rows: string[], pal: Record<string, RGBA>) => parseGrid(rows, pal);
 
-// ---------- heads (9 wide) ----------
-const HEAD = part([
-  '...kkk...',
-  '..kChCk..',
-  '.kChCCck.',
-  'kcCCCCcck',
-  'kcCCckSSS',
-  'kcCcksses',
-  'kccckssss',
-  'kkcckkSs.',
-]);
-const HEAD_UP = part([
-  '..kkk....',
-  '.kChCkk..',
-  'kChCCCck.',
-  'kcCCCCcck',
-  'kcCCCckSs',
-  'kcCcksses',
-  'kccckssss',
-  'kkcckkkS.',
-]);
-const HEAD_DOWN = part([
-  '...kkk...',
-  '..kChCk..',
-  '.kChCCck.',
-  'kcCCCCcck',
-  'kcCCCckSk',
-  'kcCcckSSS',
-  'kccckssse',
-  'kkcckkSs.',
-]);
-
-// ---------- torsos (11 wide), scarf on top ----------
-const TORSO = part([
-  '..Rrrrrrl...',
-  '.kRrrrrrrl..',
-  'kcCRRrRCck..',
-  'kcCcccccck..',
-  'kcCccccCck..',
-  'kwwwwwwwWk..',
-  'kcCcccccCck.',
-  'kcCccccccCk.',
-  'kkkkkkkkkkk.',
-]);
-const TORSO_FLUTTER = part([
-  '..Rrrrrrl...',
-  '.kRrrrrrrl..',
-  'kcCRRrRCck..',
-  'kcCcccccck..',
-  'kcCccccCck..',
-  'kwwwwwwwWk..',
-  'kcCcccccCcck',
-  'kkCccccccCck',
-  'k.kkkkkkkkk.',
-]);
-const TORSO_HANDS = part([
-  '..Rrrrrrl...',
-  '.kRrrrrrrl..',
-  'kcCRRrRCck..',
-  'kcCcccccck..',
-  'kcCccccCcs..',
-  'kwwwwwwwWss.',
-  'kcCcccccCck.',
-  'kcCccccccCk.',
-  'kkkkkkkkkkk.',
-]);
-
-// ---------- legs (9 wide) ----------
-const LEGS: Record<string, PixelBuffer> = {
-  stand: part([
-    '..pP.pP..',
-    '..pP.pP..',
-    '..pP.pP..',
-    '.bbB.bbB.',
-    '.bbbbbbbB',
-  ].map((r) => r.padEnd(9, '.').slice(0, 9))),
-  walk1: part([
-    '..pP.pP..',
-    '.pP...pP.',
-    '.pP...pP.',
-    'bbB...bbB',
-    'bbb...bbb',
-  ]),
-  walk2: part([
-    '...pPpP..',
-    '..pP.pP..',
-    '..pP..pP.',
-    '.bbB..bbB',
-    '.bbb...bb',
-  ]),
-  walk3: part([
-    '...pPp...',
-    '...pPp...',
-    '...pPpP..',
-    '..bbBbbB.',
-    '..bbbbbbB',
-  ]),
-  crouch1: part([
-    '.pP..pP..',
-    '.pP..pP..',
-    'bbB.bbB..',
-    'bbbbbbbB.',
-  ]),
-  crouch2: part([
-    'pPP..pPP.',
-    'bbB.bbB..',
-    'bbbbbbbB.',
-  ]),
-  tuck: part([
-    '..pPpP...',
-    '.pP..pP..',
-    '.bbB.bbB.',
-  ]),
-  dangle: part([
-    '..pP.pP..',
-    '..pP.pP..',
-    '..pP..pP.',
-    '..bB..bB.',
-    '.bb....bb',
-  ]),
-};
-
-interface Pose {
-  head: PixelBuffer;
-  torso: PixelBuffer;
-  legs: PixelBuffer;
-  /** Vertical offset of head + torso (positive = lower). */
-  bob: number;
-  /** Extra head offset (x, y) relative to the torso. */
-  headDx?: number;
-  headDy?: number;
-}
-
-/** Body frame names, in sheet order. */
-export const BODY_FRAMES = [
-  'idle0',
-  'idle1',
-  'walk0',
-  'walk1',
-  'walk2',
-  'walk3',
-  'walk4',
-  'walk5',
-  'charge0',
-  'charge1',
-  'charge2',
-  'rise',
-  'apex',
-  'fall0',
-  'fall1',
-  'land',
-  'bonk',
-  'stumble0',
-  'stumble1',
-  'stumble2',
-  'stumble3',
-  'ladder0',
-  'ladder1',
-  'pickup',
-] as const;
-export type BodyFrame = (typeof BODY_FRAMES)[number];
-
-const LEG_H = (b: PixelBuffer) => b.h;
-
-/** Composes head/torso/legs into a frame, feet on FEET_Y. Returns the frame and its neck point. */
-function compose(p: Pose): { buf: PixelBuffer; neck: [number, number]; back: [number, number] } {
-  // back = top-left of the torso (where the pack hangs from)
-  const buf = new PixelBuffer(FRAME_W, FRAME_H);
-  const legsY = FEET_Y + 1 - LEG_H(p.legs);
-  const torsoY = legsY - p.torso.h + 1 + p.bob;
-  const headY = torsoY - p.head.h + 1 + (p.headDy ?? 0);
-  const torsoX = FEET_X - 6;
-  const headX = torsoX + 1 + (p.headDx ?? 0);
-  buf.blit(p.legs, FEET_X - 5, legsY);
-  buf.blit(p.torso, torsoX, torsoY);
-  buf.blit(p.head, headX, headY);
-  return { buf, neck: [torsoX + 4, torsoY + 1], back: [torsoX, torsoY] };
-}
-
-/** Full-frame poses that don't fit the part system (lying, climbing). */
-const SPECIAL: Partial<Record<BodyFrame, string[]>> = {
-  stumble0: [
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '...bb...................',
-    '..bBpP..kkkkkk...kkk....',
-    '..bbpPPkcccCCCkkRrkCCk..',
-    '....pPkccwccccRrrlkCCCk.',
-    '.....kkcccwcccRRrkcCCsk.',
-    '......kkkkkkkkkkkkkkkk..',
-  ],
-  stumble1: [
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '.bb......kkkkkk...kkk...',
-    '.bBpP...kcccCCCkkRrkCCk.',
-    '..bbpPPkccwccccRrrlkCCk.',
-    '....pPkkcccwcccRRrkcCsk.',
-    '.....kkkkkkkkkkkkkkkkkss',
-  ],
-  stumble2: [
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '........................',
-    '...................kkk..',
-    '..................kcCCk.',
-    '.................kcCCCCk',
-    '............kkkkkcCCkSSs',
-    '..........kkcccRrrCkssse',
-    '.........kcccccRrrlkssss',
-    '........kccccccCRRkkSss.',
-    '.......kcwwwwwwCCk......',
-    '......kcccccccCCk.......',
-    '.....bkccccccCCk.s......',
-    '....bBpPkkkkkkk..ss.....',
-    '...bbbpP.........ss.....',
-    '..bbbbb................',
-  ].map((r) => r.padEnd(24, '.').slice(0, 24)),
-};
-
-function specialFrame(rows: string[]): PixelBuffer {
-  // drawn on a 24-wide grid with feet near x = 12; centre them on FEET_X
-  const pad = '.'.repeat(FEET_X - 12);
-  return parseGrid(rows.map((r) => (pad + r).padEnd(FRAME_W, '.').slice(0, FRAME_W)), PAL);
-}
-
-const STRAP = hex('#5a3c26');
-
-const POSES: Record<Exclude<BodyFrame, 'stumble0' | 'stumble1' | 'stumble2'>, Pose> = {
-  idle0: { head: HEAD, torso: TORSO, legs: LEGS.stand, bob: 0 },
-  idle1: { head: HEAD, torso: TORSO, legs: LEGS.stand, bob: 1 },
-  walk0: { head: HEAD, torso: TORSO, legs: LEGS.walk1, bob: 0 },
-  walk1: { head: HEAD, torso: TORSO, legs: LEGS.walk2, bob: -1 },
-  walk2: { head: HEAD, torso: TORSO, legs: LEGS.walk3, bob: 0 },
-  walk3: { head: HEAD, torso: TORSO, legs: LEGS.walk1, bob: 0 },
-  walk4: { head: HEAD, torso: TORSO, legs: LEGS.walk2, bob: -1 },
-  walk5: { head: HEAD, torso: TORSO, legs: LEGS.walk3, bob: 0 },
-  charge0: { head: HEAD_DOWN, torso: TORSO_HANDS, legs: LEGS.stand, bob: 1 },
-  charge1: { head: HEAD_DOWN, torso: TORSO_HANDS, legs: LEGS.crouch1, bob: 1 },
-  charge2: { head: HEAD_DOWN, torso: TORSO_HANDS, legs: LEGS.crouch2, bob: 1, headDy: 1 },
-  rise: { head: HEAD_UP, torso: TORSO, legs: LEGS.tuck, bob: -1 },
-  apex: { head: HEAD_UP, torso: TORSO_FLUTTER, legs: LEGS.tuck, bob: -1 },
-  fall0: { head: HEAD, torso: TORSO_FLUTTER, legs: LEGS.dangle, bob: 0 },
-  fall1: { head: HEAD_UP, torso: TORSO_FLUTTER, legs: LEGS.dangle, bob: 0, headDy: -1 },
-  land: { head: HEAD_DOWN, torso: TORSO, legs: LEGS.crouch1, bob: 1 },
-  bonk: { head: HEAD_UP, torso: TORSO_FLUTTER, legs: LEGS.dangle, bob: 0, headDx: -1, headDy: 1 },
-  stumble3: { head: HEAD_DOWN, torso: TORSO_HANDS, legs: LEGS.crouch2, bob: 2, headDy: 1 },
-  ladder0: { head: HEAD_UP, torso: TORSO_HANDS, legs: LEGS.walk2, bob: 0 },
-  ladder1: { head: HEAD_UP, torso: TORSO_HANDS, legs: LEGS.walk1, bob: 0 },
-  pickup: { head: HEAD_DOWN, torso: TORSO_HANDS, legs: LEGS.crouch1, bob: 2, headDx: 1, headDy: 1 },
-};
-
-// ---------- packs per load tier (drawn behind the body, on the back = left side) ----------
-const PACKS: (PixelBuffer | null)[] = [
-  // tier 0: small satchel at the hip
-  parseGrid(['.ww.', 'wMMw', 'mMLm', 'dmmd'], PACK),
-  // tier 1: small pack
-  parseGrid(['.wMMw.', 'dMLLMm', 'dmMMmm', 'dmWWmm', 'dmmmmm', '.dddd.'], PACK),
-  // tier 2: big pack with a bedroll
-  parseGrid(['.gGGGg..', 'ggGGGgg.', '.dMLLMm.', 'dmMLMMmm', 'dmmWWmmm', 'dmmmmmmm', 'dmmmmmMm', '.dddddd.'], PACK),
-  // tier 3: huge stacked pack
-  parseGrid(
-    [
-      '..dmMLm...',
-      '.dmMLLMm..',
-      '.ddmmmmd..',
-      '.gGGGGGgg.',
-      'ggGGGGGggg',
-      '.dMLLMMmm.',
-      'dmMLLMMmmm',
-      'dmmmWWmmmm',
-      'dmmmmmmmMm',
-      'dmmmmmmMmm',
-      'ddmmmmmmmd',
-      '.dddddddd.',
-    ],
-    PACK,
-  ),
-  // tier 4: crushing load
-  parseGrid(
-    [
-      '...dmMLMm...',
-      '..dmMLLLMm..',
-      '..dddmmmdd..',
-      '.dmMLLMMmm..',
-      'dmmMLLMMmmm.',
-      'ddmmmmmmmmd.',
-      '.gGGGGGGggg.',
-      'ggGGGGGGgggg',
-      '.dMLLLMMmmm.',
-      'dmMLLLMMmmmm',
-      'dmmmWWWmmmmm',
-      'dmmmmmmmmMmm',
-      'dmmmmmmmMmmm',
-      'ddmmmmmmmmmd',
-      '.dddddddddd.',
-    ],
-    PACK,
-  ),
-];
-
-/** Lean per tier: pixels the head moves forward. */
-const LEAN = [0, 0, 1, 2, 4];
-/** Extra crouch per tier (head/torso lowered). */
-const SAG = [0, 0, 0, 1, 2];
-
-/** Shears rows above `pivotY` forward (to the right) by up to `amount` px at the top. */
-function lean(src: PixelBuffer, amount: number, pivotY: number): PixelBuffer {
-  if (amount === 0) return src;
-  const out = new PixelBuffer(src.w, src.h);
-  for (let y = 0; y < src.h; y++) {
-    const shift = y >= pivotY ? 0 : Math.round((amount * (pivotY - y)) / 14);
-    for (let x = 0; x < src.w; x++) {
-      const c = src.get(x, y);
-      if (c >>> 24) out.set(x + shift, y, c);
-    }
+/** Breathing in: everything above row `from` moves up one row, and row `from` stretches to fill the gap. */
+function breathe(pose: PixelBuffer, from: number): PixelBuffer {
+  const out = new PixelBuffer(pose.w, pose.h);
+  for (let y = 0; y < pose.h; y++) {
+    const sy = y < from ? y + 1 : y;
+    for (let x = 0; x < pose.w; x++) out.set(x, y, pose.get(x, sy));
   }
   return out;
 }
 
-/** Moves rows above `pivotY` down by `amount` (sagging under weight), overwriting below. */
-function sag(src: PixelBuffer, amount: number, pivotY: number): PixelBuffer {
-  if (amount === 0) return src;
-  const out = new PixelBuffer(src.w, src.h);
-  for (let y = src.h - 1; y >= 0; y--) {
-    const dy = y < pivotY ? amount : 0;
-    for (let x = 0; x < src.w; x++) {
-      const c = src.get(x, y);
-      if (c >>> 24 && !(out.get(x, y + dy) >>> 24)) out.set(x, y + dy, c);
+// ---------- packs per load tier (0 light satchel, 1–2 laden pack, 3–4 towering load) ----------
+const PACK_ROWS: string[][] = [
+  [
+    '..wwww..',
+    '.nNNLLn.',
+    'mnNNLLNm',
+    'mnnWNNNm',
+    'mnnnnnnm',
+    'mmnnnnmm',
+    '.mmmmmm.',
+  ],
+  [
+    '..gwggggwg..',
+    '.gGwGGGGwGG.',
+    '..gwggggwg..',
+    '..mnnNNLLL..',
+    '.mnnnNNLLLL.',
+    'mnnnnNNLLLLL',
+    'mmmmnNNNmmmN',
+    'mnnnmmmmNNNN',
+    'mnnnnNNWNNNN',
+    'mmnmnNNwNNNN',
+    'mmnmnNNwNNNN',
+    'mmnmnNNwNNNN',
+    'mnnnnnnnnnnn',
+    '.mmmmmmmmmm.',
+  ],
+  [
+    '..gwgggggwg..',
+    '.gGwGGGGGwGG.',
+    '..gwgggggwg..',
+    '..mnnnNNLLL..',
+    '.mnnnnNNLLLL.',
+    'mnnnnnNNLLLLL',
+    'mnnnnnNNLLLLL',
+    'mmmmnnNNNmmmN',
+    'mnnnmmmmmNNNN',
+    'mnnnnnNWNNNNN',
+    'mmnmnnNwNNNNN',
+    'mmnmnnNwNNNNN',
+    'mmnmnnNwNNNNN',
+    'mmnmnnnwnnnnn',
+    'mnnnnnnnnnnnn',
+    '.mmmmmmmmmmm.',
+  ],
+  [
+    '.....mnNN......',
+    '...mnnnNLLL....',
+    '..mnnnnNNLLL...',
+    '..mnnnnnNNNNN..',
+    '..mnnnnnnnnnn..',
+    '..mwwwwwwwwwn..',
+    '...mnnnnnnnn...',
+    '...mmmmmmmmm...',
+    '..gwgggggggwg..',
+    '.gGwGGGGGGGwGG.',
+    '..gwgggggggwg..',
+    '..mnnnNNNLLLL..',
+    '.mnnnnNNNLLLLL.',
+    'mnnnnnNNNLLLLLL',
+    'mmmmmnNNNNmmmmN',
+    'mnnnnmmmmmNNNNN',
+    'mnnnnnNNWNNNNNN',
+    'mmnmnnNNwNNNNNN',
+    'mnnnnnnnnnnnnnn',
+    '.mmmmmmmmmmmmm.',
+  ],
+  [
+    '.....mnNN.......',
+    '...mnnnNLLL.....',
+    '..mnnnnNNLLL....',
+    '..mnnnnnNNNNN...',
+    '..mnnnnnnnnnn...',
+    '..mwwwwwwwwwn...',
+    '...mnnnnnnnn....',
+    '...mmmmmmmmm....',
+    '..gwggggggggwg..',
+    '.gGwGGGGGGGGwGG.',
+    '..gwggggggggwg..',
+    '..mnnnnNNNLLLL..',
+    '.mnnnnnNNNLLLLL.',
+    'mnnnnnnNNNLLLLLL',
+    'mnnnnnnNNNLLLLLL',
+    'mmmmmnnNNNNmmmmN',
+    'mnnnnmmmmmmNNNNN',
+    'mnnnnnnNNWNNNNNN',
+    'mmnmnnnNNwNNNNNN',
+    'mmnmnnnNNwNNNNNN',
+    'mmnmnnnnnwnnnnnn',
+    'mnnnnnnnnnnnnnnn',
+    '.mmmmmmmmmmmmmm.',
+  ],
+];
+const PACKS = PACK_ROWS.map((rows) => part(rows, PACK_PAL));
+
+/** Rows from a pose's back anchor down to the bottom of the pack. */
+const PACK_DROP = 9;
+
+/** Body frame names, in sheet order (unchanged from the MVP, so the renderer's state machine still works). */
+export const BODY_FRAMES = [
+  'idle0', 'idle1', 'walk0', 'walk1', 'walk2', 'walk3', 'walk4', 'walk5', 'charge0', 'charge1', 'charge2',
+  'rise', 'apex', 'fall0', 'fall1', 'land', 'bonk', 'stumble0', 'stumble1', 'stumble2', 'stumble3', 'ladder0', 'ladder1', 'pickup',
+  'cling0', 'cling1', 'hang',
+] as const;
+export type BodyFrame = (typeof BODY_FRAMES)[number];
+
+/** A hand-drawn pose: its grid (feet on the last row), where the scarf attaches, and where the pack hangs. */
+interface Pose {
+  grid: PixelBuffer;
+  neck: [number, number];
+  back: [number, number];
+  /** Seen from behind: the pack is drawn over the body. */
+  front?: boolean;
+  /** Lying down: the body does not lean under load. */
+  lying?: boolean;
+}
+
+const pose = (rows: string[], neck: [number, number], back: [number, number], extra: Partial<Pose> = {}): Pose => ({ grid: part(rows, PAL), neck, back, ...extra });
+
+const IDLE0_ROWS = [
+  '........................',
+  '........................',
+  '........................',
+  '.........bb.............',
+  '........bbbccd..........',
+  '........abbcccdde.......',
+  '.......abbccccddde......',
+  '......abbbcccdddeee.....',
+  '......abbbccahhhuve.....',
+  '......abbbccahuvvv......',
+  '......abbbccatkuvvu.....',
+  '......abbbcbatkuuu......',
+  '.......abbcbastts.......',
+  '......qrrRRRRlllll......',
+  '.....qrrrRRRRRRlRq......',
+  '.....bqqrrrrrrrrqd......',
+  '.....abbbbccccdwde......',
+  '.....abbbbccccwdde......',
+  '....abbbbccccwbddde.....',
+  '....abbbbcccWcbddde.....',
+  '....abbbbccwccbddde.....',
+  '....abbbbcwcccbddde.....',
+  '...abbbbbwcccccduvde....',
+  '...abbbbwccccccdtude....',
+  '...abbbbbccccccdddde....',
+  '....ab.bbccppccd.de.....',
+  '....ab..ppP..pPP.d......',
+  '........ppP..pPP........',
+  '........ppP..pPP........',
+  '........ppP..pPP........',
+  '.......oooO..ooOO.......',
+  '.......ooOo..oooOO......',
+  '......ooooo..oooooo.....',
+  '......ooooo..oooooo.....',
+];
+
+/** Every pose, by body frame. */
+const POSES: Record<BodyFrame, Pose> = {
+  idle0: pose(
+    [
+    '........................',
+    '........................',
+    '........................',
+    '.........bb.............',
+    '........bbbccd..........',
+    '........abbcccdde.......',
+    '.......abbccccddde......',
+    '......abbbcccdddeee.....',
+    '......abbbccahhhuve.....',
+    '......abbbccahuvvv......',
+    '......abbbccatkuvvu.....',
+    '......abbbcbatkuuu......',
+    '.......abbcbastts.......',
+    '......qrrRRRRlllll......',
+    '.....qrrrRRRRRRlRq......',
+    '.....bqqrrrrrrrrqd......',
+    '.....abbbbccccdwde......',
+    '.....abbbbccccwdde......',
+    '....abbbbccccwbddde.....',
+    '....abbbbcccWcbddde.....',
+    '....abbbbccwccbddde.....',
+    '....abbbbcwcccbddde.....',
+    '...abbbbbwcccccduvde....',
+    '...abbbbwccccccdtude....',
+    '...abbbbbccccccdddde....',
+    '....ab.bbccppccd.de.....',
+    '....ab..ppP..pPP.d......',
+    '........ppP..pPP........',
+    '........ppP..pPP........',
+    '........ppP..pPP........',
+    '.......oooO..ooOO.......',
+    '.......ooOo..oooOO......',
+    '......ooooo..oooooo.....',
+    '......ooooo..oooooo.....',
+    ],
+    [8, 14],
+    [5, 15],
+  ),
+  /** Breathing in: the hood, head, scarf and shoulders rise one row; the cloak hem stays. */
+  idle1: { grid: breathe(part(IDLE0_ROWS, PAL), 16), neck: [8, 13], back: [5, 14] },
+  walk0: pose(
+    [
+    '........................',
+    '........................',
+    '........................',
+    '.........bb.............',
+    '........bbbccd..........',
+    '........abbcccdde.......',
+    '.......abbccccddde......',
+    '......abbbcccdddeee.....',
+    '......abbbccahhhuve.....',
+    '......abbbccahuvvv......',
+    '......abbbccatkuvvu.....',
+    '......abbbcbatkuuu......',
+    '.......abbcbastts.......',
+    '......qrrRRRRlllll......',
+    '.....qrrrRRRRRRlRq......',
+    '.....bqqrrrrrrrrqd......',
+    '.....abbbbccccdwde......',
+    '.....abbbbccccwdde......',
+    '.....abbbbcccwdbde......',
+    '....abbbbcccWccbdde.....',
+    '....abbbbccwccbddde.....',
+    '....abbbbcwccbdddde.....',
+    '....abbbbwcccbuvdde.....',
+    '...abbbbwccccctuddde....',
+    '...abbbbbccccccdddde....',
+    '....bb.bbcc.cccdd.d.....',
+    '........ppP..pPP........',
+    '.......ppP....pPP.......',
+    '......ppP.....pPP.......',
+    '......ppP......pPP......',
+    '.....oooO.......ooOO....',
+    '.....ooOo.......oooOO...',
+    '....ooooo.......oooooo..',
+    '....ooooo.......oooooo..',
+    ],
+    [8, 14],
+    [5, 15],
+  ),
+  walk1: pose(
+    [
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '.........bb.............',
+    '........bbbccd..........',
+    '........abbcccdde.......',
+    '.......abbccccddde......',
+    '......abbbcccdddeee.....',
+    '......abbbccahhhuve.....',
+    '......abbbccahuvvv......',
+    '......abbbccatkuvvu.....',
+    '......abbbcbatkuuu......',
+    '.......abbcbastts.......',
+    '......qrrRRRRlllll......',
+    '.....qrrrRRRRRRlRq......',
+    '.....bqqrrrrrrrrqd......',
+    '.....abbbbccccdwde......',
+    '.....abbbbccccwdde......',
+    '.....abbbbcccwdbde......',
+    '.....abbbbccWccbdde.....',
+    '.....abbbbcwcccbdde.....',
+    '....abbbbcwcccbddde.....',
+    '....abbbbwccccbuvde.....',
+    '....abbbwbccccctudde....',
+    '....abbbbbcccccdddde....',
+    '.....bb.bbc.cccdd.d.....',
+    '........ppP..pPP........',
+    '........ppP..pPP........',
+    '.......ppP....pPP.......',
+    '.......oooO...ooOO......',
+    '.......ooOo...oooOO.....',
+    '......ooooo...oooooo....',
+    '......ooooo...oooooo....',
+    ],
+    [8, 15],
+    [5, 16],
+  ),
+  walk2: pose(
+    [
+    '........................',
+    '........................',
+    '........................',
+    '.........bb.............',
+    '........bbbccd..........',
+    '........abbcccdde.......',
+    '.......abbccccddde......',
+    '......abbbcccdddeee.....',
+    '......abbbccahhhuve.....',
+    '......abbbccahuvvv......',
+    '......abbbccatkuvvu.....',
+    '......abbbcbatkuuu......',
+    '.......abbcbastts.......',
+    '......qrrRRRRlllll......',
+    '.....qrrrRRRRRRlRq......',
+    '.....bqqrrrrrrrrqd......',
+    '.....abbbbccccdwde......',
+    '.....abbbbccccwdde......',
+    '.....abbbbcccwdbde......',
+    '....abbbbcccWcdbde......',
+    '....abbbbccwccdbde......',
+    '....abbbbcwccccbdde.....',
+    '....abbbbwcccccbuve.....',
+    '...abbbbwcccccddtue.....',
+    '...abbbbbcccccdddde.....',
+    '....bb.bbc.cccdd.d......',
+    '.........ppPpPP.........',
+    '.........ppPpPP.........',
+    '..........ppooOO........',
+    '..........ppoooOO.......',
+    '..........oooooooo......',
+    '..........oooooooo......',
+    '.........ooooo..........',
+    '.........ooooo..........',
+    ],
+    [8, 14],
+    [5, 15],
+  ),
+  walk3: pose(
+    [
+    '........................',
+    '........................',
+    '........................',
+    '.........bb.............',
+    '........bbbccd..........',
+    '........abbcccdde.......',
+    '.......abbccccddde......',
+    '......abbbcccdddeee.....',
+    '......abbbccahhhuve.....',
+    '......abbbccahuvvv......',
+    '......abbbccatkuvvu.....',
+    '......abbbcbatkuuu......',
+    '.......abbcbastts.......',
+    '......qrrRRRRlllll......',
+    '.....qrrrRRRRRRlRq......',
+    '.....bqqrrrrrrrrqd......',
+    '.....abbbbccccdwde......',
+    '.....abbbbccccwdde......',
+    '.....abbbbcccwdbde......',
+    '....abbbbcccWccbdde.....',
+    '....abbbbccwcccdbde.....',
+    '....abbbbcwccccddbd.....',
+    '....abbbbwcccccddbuv....',
+    '...abbbbwccccccdddtu....',
+    '...abbbbbccccccdddde....',
+    '....bb.bbcc.cccdd.d.....',
+    '.........ppPpPP.........',
+    '..........pPPP..........',
+    '.........pPPppP.........',
+    '.......pPPP..pppP.......',
+    '......ooOO.....oooO.....',
+    '......oooOO....ooOo.....',
+    '......oooooo..ooooo.....',
+    '......oooooo..ooooo.....',
+    ],
+    [8, 14],
+    [5, 15],
+  ),
+  walk4: pose(
+    [
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '.........bb.............',
+    '........bbbccd..........',
+    '........abbcccdde.......',
+    '.......abbccccddde......',
+    '......abbbcccdddeee.....',
+    '......abbbccahhhuve.....',
+    '......abbbccahuvvv......',
+    '......abbbccatkuvvu.....',
+    '......abbbcbatkuuu......',
+    '.......abbcbastts.......',
+    '......qrrRRRRlllll......',
+    '.....qrrrRRRRRRlRq......',
+    '.....bqqrrrrrrrrqd......',
+    '.....abbbbccccdwde......',
+    '.....abbbbccccwdde......',
+    '.....abbbbcccwdbde......',
+    '.....abbbbccWccbdde.....',
+    '.....abbbbcwcccbdde.....',
+    '....abbbbcwccccdbde.....',
+    '....abbbbwcccccdbuv.....',
+    '....abbbwbcccccddtue....',
+    '....abbbbbcccccdddde....',
+    '.....bb.bbc.cccdd.d.....',
+    '.........ppPpPP.........',
+    '..........pPPP..........',
+    '.........pPPppP.........',
+    '........ooOO.oooO.......',
+    '........oooOOooOo.......',
+    '........ooooooooo.......',
+    '........ooooooooo.......',
+    ],
+    [8, 15],
+    [5, 16],
+  ),
+  walk5: pose(
+    [
+    '........................',
+    '........................',
+    '........................',
+    '.........bb.............',
+    '........bbbccd..........',
+    '........abbcccdde.......',
+    '.......abbccccddde......',
+    '......abbbcccdddeee.....',
+    '......abbbccahhhuve.....',
+    '......abbbccahuvvv......',
+    '......abbbccatkuvvu.....',
+    '......abbbcbatkuuu......',
+    '.......abbcbastts.......',
+    '......qrrRRRRlllll......',
+    '.....qrrrRRRRRRlRq......',
+    '.....bqqrrrrrrrrqd......',
+    '.....abbbbccccdwde......',
+    '.....abbbbccccwdde......',
+    '.....abbbbcccwdbde......',
+    '....abbbbcccWcdbde......',
+    '....abbbbccwccdbde......',
+    '....abbbbcwccccbdde.....',
+    '....abbbbwcccccbuve.....',
+    '...abbbbwcccccddtue.....',
+    '...abbbbbcccccdddde.....',
+    '....bb.bbc.cccdd.d......',
+    '..........pppPP.........',
+    '..........pppPP.........',
+    '...........opPP.........',
+    '...........pPPo.........',
+    '..........oooOO.........',
+    '..........ooooOO........',
+    '...........oooooo.......',
+    '...........oooooo.......',
+    ],
+    [8, 14],
+    [5, 15],
+  ),
+  charge0: pose(
+    [
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '.........bb.............',
+    '........bbbccd..........',
+    '........abbcccdde.......',
+    '.......abbccccddde......',
+    '......abbbcccdddeee.....',
+    '......abbbccahhhuve.....',
+    '......abbbccahuvvv......',
+    '......abbbccatkuvvu.....',
+    '......abbbcbatkuuu......',
+    '.......abbcbastts.......',
+    '......qrrRRRRlllll......',
+    '.....qrrrRRRRRRlRq......',
+    '.....bqqrrrrrrrrqd......',
+    '.....abbbbccccdwde......',
+    '.....abbbbccccwdde......',
+    '.....abbbbcccwdbde......',
+    '....abbbbcccWccbdde.....',
+    '....abbbbccwcccbdde.....',
+    '....abbbbcwccccbdde.....',
+    '....abbbbwcccccbuve.....',
+    '...abbbbwccccccdtude....',
+    '...abbbbbccccccdddde....',
+    '....bb.bbcc.cccdd.d.....',
+    '........ppP...pPP.......',
+    '........ppP...pPP.......',
+    '.......ppP...pPP........',
+    '.......oooO..ooOO.......',
+    '.......ooOo..oooOO......',
+    '......ooooo..oooooo.....',
+    '......ooooo..oooooo.....',
+    ],
+    [8, 15],
+    [5, 16],
+  ),
+  charge1: pose(
+    [
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '.........bb.............',
+    '........bbbccd..........',
+    '........abbcccdde.......',
+    '.......abbccccddde......',
+    '......abbbcccdddeee.....',
+    '......abbbccahhhuve.....',
+    '......abbbccahuvvv......',
+    '......abbbccatkuvvu.....',
+    '......abbbcbatkuuu......',
+    '.......abbcbastts.......',
+    '......qrrRRRRlllll......',
+    '.....qrrrRRRRRRlRq......',
+    '.....bqqrrrrrrrrqd......',
+    '.....abbbbccccdwde......',
+    '.....abbbbccccwdde......',
+    '....abbbbccccwcbdde.....',
+    '....abbbbcccWccbdde.....',
+    '....abbbbccwcccbdde.....',
+    '...abbbbbcwccccbddde....',
+    '...abbbbbwcccccbuvde....',
+    '...abbbbwccccccdtude....',
+    '..abbbbbbccccccddddde...',
+    '...bb.bbbcc.cccddd.d....',
+    '........ppP...pPP.......',
+    '........ppP...pPP.......',
+    '.......oooO..ooOO.......',
+    '.......ooOo..oooOO......',
+    '......ooooo..oooooo.....',
+    '......ooooo..oooooo.....',
+    ],
+    [8, 16],
+    [5, 17],
+  ),
+  charge2: pose(
+    [
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '.........bb.............',
+    '........bbbccd..........',
+    '........abbcccdde.......',
+    '.......abbccccddde......',
+    '......abbbcccdddeee.....',
+    '......abbbccahhhuve.....',
+    '......abbbccahuvvv......',
+    '......abbbccatkuvvu.....',
+    '......abbbcbatkuuu......',
+    '.......abbcbastts.......',
+    '......qrrRRRRlllll......',
+    '.....qrrrRRRRRRlRq......',
+    '.....bqqrrrrrrrrqd......',
+    '.....abbbbccccdwde......',
+    '.....abbbbccccwbde......',
+    '....abbbbccccwcbdde.....',
+    '....abbbbcccWccbdde.....',
+    '....abbbbccwcccbdde.....',
+    '...abbbbbcwccccbuvde....',
+    '...abbbbbwcccccdtude....',
+    '..abbbbbwccccccddddde...',
+    '...bb.bbbcc.cccddd.d....',
+    '........ppP...pPP.......',
+    '.......oooO..ooPP.......',
+    '.......ooOo..oooOO......',
+    '......ooooo..oooooo.....',
+    '......ooooo..oooooo.....',
+    ],
+    [8, 18],
+    [5, 18],
+  ),
+  rise: pose(
+    [
+    '........................',
+    '........................',
+    '.........bb.............',
+    '........bbbccd..........',
+    '........abbcccdde.buv...',
+    '.......abbccccdddebtu...',
+    '......abbbcccdddebd.....',
+    '......abbbccahhhubd.....',
+    '......abbbccahuvvbd.....',
+    '......abbbccatkuvbd.....',
+    '......abbbcbatkuubd.....',
+    '.......abbcbasttbd......',
+    '......qrrRRRRlllbd......',
+    '.....qrrrRRRRRRlbd......',
+    '.....bqqrrrrrrrbdd......',
+    '.....abbbbccccdbde......',
+    '.....abbbbccccwbde......',
+    '.....abbbbcccwddde......',
+    '.....abbbbccWcddde......',
+    '.....abbbbcwccddde......',
+    '.....abbbbwcccddde......',
+    '.....abbbwccccddde......',
+    '.....abbwbccccddde......',
+    '.....abbbbccccddde......',
+    '.....abbbbccccddde......',
+    '......bb.bc.ccd.d.......',
+    '.........ppPpPP.........',
+    '.........ppPpPP.........',
+    '.........ppPpPP.........',
+    '.........ooopPP.........',
+    '.........oooooO.........',
+    '.........oooooO.........',
+    '..........ooooo.........',
+    '.............oo.........',
+    ],
+    [8, 13],
+    [5, 14],
+  ),
+  apex: pose(
+    [
+    '........................',
+    '........................',
+    '........................',
+    '.........bb.............',
+    '........bbbccd..........',
+    '........abbcccdde.......',
+    '.......abbccccddde......',
+    '......abbbcccdddeee.....',
+    '......abbbccahhhuve.....',
+    '......abbbccahuvvv......',
+    '......abbbccatkuvvu.....',
+    '......abbbcbatkuuu......',
+    '.......abbcbastts.......',
+    '......qrrRRRRlllll......',
+    '.....qrrrRRRRRRlRq......',
+    '.....bqqrrrrrrrrqd......',
+    '.....abbbbccccdwde......',
+    '.....abbbbccccwddbbuv...',
+    '....abbbbccccwcbbdetu...',
+    '....abbbbcccWccddde.....',
+    '....abbbbccwcccddde.....',
+    '....abbbbcwccccddde.....',
+    '....abbbbwcccccddde.....',
+    '...abbbbwccccccdddde....',
+    '....bb.bbcc.cccdd.d.....',
+    '.........ppPpPP.........',
+    '.........ppP.pPP........',
+    '........ppP...ooOO......',
+    '........oooO..oooOO.....',
+    '........ooOo..oooooo....',
+    '.......ooooo..oooooo....',
+    '.......ooooo............',
+    '........................',
+    '........................',
+    ],
+    [8, 14],
+    [5, 15],
+  ),
+  fall0: pose(
+    [
+    '........................',
+    '........................',
+    '........................',
+    '.........bb.............',
+    '........bbbccd..........',
+    '........abbcccdde.......',
+    '.......abbccccddde......',
+    '......abbbcccdddeee.....',
+    '......abbbccahhhuve.....',
+    '......abbbccahuvvv......',
+    '......abbbccatkuvvu.....',
+    '......abbbcbatkuuu......',
+    '.......abbcbastts.......',
+    '......qrrRRRRlllll......',
+    '.....qrrrRRRRRRlRq.buv..',
+    '.....bqqrrrrrrrrqdbdtu..',
+    '.....abbbbccccdwbbd.....',
+    '.....abbbbccccwbde......',
+    '....abbbbccccwcddde.....',
+    '....abbbbcccWccddde.....',
+    '...abbbbbccwcccdddde....',
+    '..abbbbbbcwccccddddede..',
+    '..abbbbbbwcccccddddde...',
+    '...bb.bbbcc.cccddd.d....',
+    '........ppP..pPP........',
+    '........ppP...pPP.......',
+    '.......ppP....pPP.......',
+    '......ppP.....pPP.......',
+    '......ppP......pPP......',
+    '......ooo......ooO......',
+    '......ooo......ooO......',
+    '......ooo......ooo......',
+    '.......oo.......oo......',
+    '........................',
+    ],
+    [8, 14],
+    [5, 15],
+  ),
+  fall1: pose(
+    [
+    '........................',
+    '........................',
+    '........................',
+    '.........bb.............',
+    '........bbbccd..........',
+    '........abbcccdde.......',
+    '.......abbccccddde......',
+    '......abbbcccdddeee.....',
+    '......abbbccahhhuve.....',
+    '......abbbccahuvvv......',
+    '......abbbccatkuvvu.....',
+    '......abbbcbatkuuu......',
+    '.......abbcbastts.......',
+    '......qrrRRRRlllll......',
+    '.....qrrrRRRRRRlRq......',
+    '.....bqqrrrrrrrrqd.buv..',
+    '.....abbbbccccdwbbbdtu..',
+    '.....abbbbccccwbde......',
+    '....abbbbccccwcddde.....',
+    '....abbbbcccWccddde.....',
+    '...abbbbbccwcccdddde....',
+    '...abbbbbcwccccdddde....',
+    '..abbbbbbwcccccdddddde..',
+    '...bb.bbbcc.cccddd.d....',
+    '........ppP..pPP........',
+    '........ppP..pPP........',
+    '........ppP..pPP........',
+    '.......ppP....pPP.......',
+    '.......ppP....pPP.......',
+    '.......ooo....pPP.......',
+    '.......ooo....ooO.......',
+    '.......ooo....ooO.......',
+    '........oo....ooo.......',
+    '...............oo.......',
+    ],
+    [8, 14],
+    [5, 15],
+  ),
+  land: pose(
+    [
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '.........bb.............',
+    '........bbbccd..........',
+    '........abbcccdde.......',
+    '.......abbccccddde......',
+    '......abbbcccdddeee.....',
+    '......abbbccahhhuve.....',
+    '......abbbccahuvvv......',
+    '......abbbccatkuvvu.....',
+    '......abbbcbatkuuu......',
+    '.......abbcbastts.......',
+    '......qrrRRRRlllll......',
+    '.....qrrrRRRRRRlRq......',
+    '.....bqqrrrrrrrrqd......',
+    '.....abbbbccccdwde......',
+    '.....abbbbccccwdde......',
+    '....abbbbccccwcbdde.....',
+    '....abbbbcccWccbdde.....',
+    '....abbbbccwcccbdde.....',
+    '...abbbbbcwccccbddde....',
+    '...abbbbbwcccccbuvde....',
+    '...abbbbwccccccdtude....',
+    '..abbbbbbccccccddddde...',
+    '...bb.bbbcc.cccddd.d....',
+    '........ppP...pPP.......',
+    '........ppP...pPP.......',
+    '.......oooO..ooOO.......',
+    '.......ooOo..oooOO......',
+    '......ooooo..oooooo.....',
+    '......ooooo..oooooo.....',
+    ],
+    [8, 16],
+    [5, 17],
+  ),
+  bonk: pose(
+    [
+    '........................',
+    '........................',
+    '........................',
+    '..........bbc...........',
+    '........bbbcccdd........',
+    '.......abbcccdddee......',
+    '......abbbcccdddeee.....',
+    '......abbbccahhhhue.....',
+    '......abbbccahuvvvv.....',
+    '......abbbccatsstvv.....',
+    '......abbbcbatuuuuv.....',
+    '.......abbcbatuussu.....',
+    '........abbbasttt.......',
+    '......qrrRRRRlllll......',
+    '.....qrrrRRRRRRlRq......',
+    '.....bqqrrrrrrrrqd......',
+    '.....abbbbccccdwde......',
+    '.....abbbbccccwbde......',
+    '.....abbbbcccwddbd......',
+    '.....abbbbccWcdddbd.....',
+    '.....abbbbcwccdddbd.....',
+    '....abbbbcwccccdddbuv...',
+    '....abbbbwcccccdddetu...',
+    '....abbbwccccccddde.....',
+    '....abbbbccccccddde.....',
+    '.....bb.bcc.cccd.d......',
+    '.........ppPpPP.........',
+    '.........ppPpPP.........',
+    '.........ppPpPP.........',
+    '.........ooopPP.........',
+    '.........oooooO.........',
+    '.........oooooO.........',
+    '..........ooooo.........',
+    '.............oo.........',
+    ],
+    [8, 14],
+    [5, 15],
+  ),
+  stumble0: pose(
+    [
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '.......................ee.........',
+    '.......ee.u........eeeeddd......oo',
+    '......eevvvu.lqdeeedddvud......Ooo',
+    '.....edeuvvuslRqddddddutdd....OOoo',
+    '.....dddhvuutllrwdbbbbbdddPPPPOooo',
+    '.....dddhukktlRrdwdcccccccPPPPoooo',
+    '....dccdhhttslRrccwcccccccppppoooo',
+    '....ccccaaaaaRRrcccWcccccc........',
+    '....cccccccbbRRrccccwcccc.........',
+    '...bbbcccccccRRrcccccwccccPPP.Oooo',
+    '...bbbbbbbbbbRRrbbbcccwcccpppPoOoo',
+    '....babbbbbbbrrrbbbbbbbwbbppppoooo',
+    '......abbbbbarrqbbbbbbbbbb...poooo',
+    '.......aaaaa.qrqbbbbbbbbb.......oo',
+    '..............qbaaabbbbbbb........',
+    '...................aaaabbb........',
+    '.......................aa.........',
+    ],
+    [14, 25],
+    [12, 30], { lying: true },
+  ),
+  stumble1: pose(
+    [
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '..................................',
+    '.......................ee.........',
+    '.......ee.u........eeeeddd......oo',
+    '......eevvvu.lqdeeedddvud......Ooo',
+    '.....edeuvvuslRqddddddutdd....OOoo',
+    '.....dddhvuutllrwdbbbbbdddPPPPOooo',
+    '.....dddhukktlRrdwdcccccccPPPPoooo',
+    '....dccdhhttslRrccwcccccccppppoooo',
+    '....ccccaaaaaRRrcccWcccccc........',
+    '....cccccccbbRRrccccwcccc.........',
+    '...bbbcccccccRRrcccccwccccPPP.Oooo',
+    '...bbbbbbbbbbRRrbbbcccwcccpppPoOoo',
+    '....babbbbbbbrrrbbbbbbbwbbppppoooo',
+    '......abbbbbarrqbbbbbbbbbb...poooo',
+    '.......aaaaa.qrqbbbbbbbbb.......oo',
+    '..............qbaaabbbbbbb........',
+    '...................aaaabbb........',
+    '.......................aa.........',
+    '..................................',
+    ],
+    [14, 24],
+    [12, 29], { lying: true },
+  ),
+  stumble2: pose(
+    [
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '.........bb.............',
+    '........bbbccd..........',
+    '........abbcccdde.......',
+    '.......abbccccddde......',
+    '......abbbcccdddeee.....',
+    '......abbbccahhhuve.....',
+    '......abbbccahuvvv......',
+    '......abbbccatkuvvu.....',
+    '......abbbcbatkuuu......',
+    '.......abbcbastts.......',
+    '......qrrRRRRlllll......',
+    '.....qrrrRRRRRRlRq......',
+    '.....bqqrrrrrrrrqd......',
+    '.....abbbbccccdwde......',
+    '.....abbbbccccwdde......',
+    '.....abbbbcccwdbde......',
+    '.....abbbbccWcddbd......',
+    '....abbbbccwcccdbde.....',
+    '....abbbbcwccccddbd.....',
+    '....abbbbwcccccddbd.....',
+    '....abbbwccccccdddbuvOO.',
+    '.....bb.bcc.cccd.d.tuoOO',
+    '............pPPPPPPooooo',
+    '...................ooooo',
+    ],
+    [8, 21],
+    [5, 22],
+  ),
+  stumble3: pose(
+    [
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '.........bb.............',
+    '........bbbccd..........',
+    '........abbcccdde.......',
+    '.......abbccccddde......',
+    '......abbbcccdddeee.....',
+    '......abbbccahhhuve.....',
+    '......abbbccahuvvv......',
+    '......abbbccatkuvvu.....',
+    '......abbbcbatkuuu......',
+    '.......abbcbastts.......',
+    '......qrrRRRRlllll......',
+    '.....qrrrRRRRRRlRq......',
+    '.....bqqrrrrrrrrqd......',
+    '.....abbbbccccdwde......',
+    '.....abbbbccccwbde......',
+    '....abbbbccccwcbdde.....',
+    '....abbbbcccWccbdde.....',
+    '....abbbbccwcccbdde.....',
+    '...abbbbbcwccccbuvde....',
+    '...abbbbbwcccccdtude....',
+    '..abbbbbwccccccddddde...',
+    '...bb.bbbcc.cccddd.d....',
+    '........ppP...pPP.......',
+    '.......oooO..ooPP.......',
+    '.......ooOo..oooOO......',
+    '......ooooo..oooooo.....',
+    '......ooooo..oooooo.....',
+    ],
+    [8, 18],
+    [5, 18],
+  ),
+  ladder0: pose(
+    [
+    '........................',
+    '........................',
+    '........................',
+    '..........bb............',
+    '.........bbcc..uv.......',
+    '.......abbcccddtu.......',
+    '......abbbccccdd........',
+    '......abbbcccccdd.......',
+    '......abbbcccccdd.......',
+    '......uvbbcccccdd.......',
+    '......tubbbccccdd.......',
+    '.......abbbbcccd........',
+    '........abbbccd.........',
+    '.......qrrRRRRll........',
+    '......qrrrRRRRRlq.......',
+    '......bqqrrrrrrqd.......',
+    '.....abbbbccccdwde......',
+    '.....abbbbccccwdde......',
+    '.....abbbbcccwddde......',
+    '.....abbbbccWcddde......',
+    '.....abbbbcwccddde......',
+    '....abbbbcwccccddde.....',
+    '....abbbbwcccccddde.....',
+    '....abbbwccccccddde.....',
+    '....abbbbccccccddde.....',
+    '.....bb.bcc.cccd.d......',
+    '.........ppP.pPP........',
+    '.........ppP.pPP........',
+    '........ppP..ooOO.......',
+    '........ppP..oooOO......',
+    '........oooO.oooooo.....',
+    '........ooOo.oooooo.....',
+    '.......ooooo............',
+    '.......ooooo............',
+    ],
+    [11, 14],
+    [10, 16], { front: true },
+  ),
+  ladder1: pose(
+    [
+    '........................',
+    '........................',
+    '........................',
+    '..........bb............',
+    '......uv.bbcc...........',
+    '......tubbcccdd.........',
+    '......abbbccccdd........',
+    '......abbbcccccdd.......',
+    '......abbbcccccdd.......',
+    '......abbbcccccuv.......',
+    '......abbbbcccctu.......',
+    '.......abbbbcccd........',
+    '........abbbccd.........',
+    '.......qrrRRRRll........',
+    '......qrrrRRRRRlq.......',
+    '......bqqrrrrrrqd.......',
+    '.....abbbbccccdwde......',
+    '.....abbbbccccwdde......',
+    '.....abbbbcccwddde......',
+    '.....abbbbccWcddde......',
+    '.....abbbbcwccddde......',
+    '....abbbbcwccccddde.....',
+    '....abbbbwcccccddde.....',
+    '....abbbwccccccddde.....',
+    '....abbbbccccccddde.....',
+    '.....bb.bcc.cccd.d......',
+    '.........ppP.pPP........',
+    '........ppP..pPP........',
+    '........oooO.pPP........',
+    '........ooOo.pPP........',
+    '.......ooooo.ooOO.......',
+    '.......ooooo.oooOO......',
+    '.............oooooo.....',
+    '.............oooooo.....',
+    ],
+    [11, 14],
+    [10, 16], { front: true },
+  ),
+  pickup: pose(
+    [
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '........................',
+    '.........bb.............',
+    '........bbbccd..........',
+    '........abbcccdde.......',
+    '.......abbccccddde......',
+    '......abbbcccdddeee.....',
+    '......abbbccahhhuve.....',
+    '......abbbccahuvvv......',
+    '......abbbccatkuvvu.....',
+    '......abbbcbatkuuu......',
+    '.......abbcbastts.......',
+    '......qrrRRRRlllll......',
+    '.....qrrrRRRRRRlRq......',
+    '.....bqqrrrrrrrrqd......',
+    '.....abbbbccccdwde......',
+    '.....abbbbccccwbde......',
+    '....abbbbccccwcbdde.....',
+    '....abbbbcccWccdbde.....',
+    '....abbbbccwcccdbde.....',
+    '...abbbbbcwccccdbdde....',
+    '...abbbbbwcccccddbde....',
+    '..abbbbbwccccccddbdde...',
+    '...bb.bbbcc.cccddbdd....',
+    '........ppP...pPPbd.....',
+    '.......oooO..ooPP.bd....',
+    '.......ooOo..oooOObuv...',
+    '......ooooo..ooooootu...',
+    '......ooooo..oooooo.....',
+    ],
+    [8, 18],
+    [5, 19],
+  ),
+  cling0: pose(
+    [
+    '........................',
+    '........................',
+    '........................',
+    '.........bb.............',
+    '........bbbccd..........',
+    '........abbcccdde.......',
+    '.......abbccccdddbuv....',
+    '......abbbcccdddebtu....',
+    '......abbbccahhhubd.....',
+    '......abbbccahuvbduv....',
+    '......abbbccatkubdtu....',
+    '......abbbcbatkubd......',
+    '.......abbcbasttbd......',
+    '......qrrRRRRlllbd......',
+    '.....qrrrRRRRRRlbd......',
+    '.....bqqrrrrrrrbdd......',
+    '.....abbbbccccdbde......',
+    '.....abbbbccccwbde......',
+    '.....abbbbcccwddde......',
+    '.....abbbbccWcddde......',
+    '.....abbbbcwccddde......',
+    '....abbbbcwccccddde.....',
+    '....abbbbwcccccddde.....',
+    '....abbbwccccccddde.....',
+    '....abbbbccccccddde.....',
+    '.....bb.bcc.cccd.d......',
+    '.........ppP..ppPP......',
+    '.........ppP....ooOO....',
+    '.........ppP....oooOO...',
+    '.........ppP....oooooo..',
+    '.........oooO...oooooo..',
+    '.........ooOo...........',
+    '........ooooo...........',
+    '........ooooo...........',
+    ],
+    [8, 14],
+    [5, 15],
+  ),
+  cling1: pose(
+    [
+    '........................',
+    '........................',
+    '........................',
+    '.........bb.............',
+    '........bbbccd..........',
+    '........abbcccdde.uv....',
+    '.......abbccccdddetu....',
+    '......abbbcccdddeee.....',
+    '......abbbccahhhuve.....',
+    '......abbbccahuvvv......',
+    '......abbbccatkuvbuv....',
+    '......abbbcbatkuubtu....',
+    '.......abbcbasttbd......',
+    '......qrrRRRRlllbd......',
+    '.....qrrrRRRRRRlbd......',
+    '.....bqqrrrrrrrrbd......',
+    '.....abbbbccccdbde......',
+    '.....abbbbccccwbde......',
+    '.....abbbbcccwddde......',
+    '.....abbbbccWcddde......',
+    '.....abbbbcwccddde......',
+    '....abbbbcwccccddde.....',
+    '....abbbbwcccccddde.....',
+    '....abbbwccccccddde.....',
+    '....abbbbccccccddde.....',
+    '.....bb.bcc.cccd.d.O....',
+    '.........ppP....oooOO...',
+    '.........ppP....oooooo..',
+    '.........ppP....oooooo..',
+    '.........ppP............',
+    '.........oooO...........',
+    '.........ooOo...........',
+    '........ooooo...........',
+    '........ooooo...........',
+    ],
+    [8, 14],
+    [5, 15],
+  ),
+  hang: pose(
+    [
+    '.........uv..uv.........',
+    '.........tu..tu.........',
+    '..........b..d..........',
+    '..........b..d..........',
+    '..........b..d..........',
+    '..........b..d..........',
+    '..........b..d..........',
+    '..........b..d..........',
+    '.........bb..d..........',
+    '........bbbccd..........',
+    '........abbcccdde.......',
+    '.......abbccccddde......',
+    '......abbbcccdddeee.....',
+    '......abbbccahhhuve.....',
+    '......abbbccahuvvv......',
+    '......abbbccatkuvvu.....',
+    '......abbbcbatkuuu......',
+    '.......abbcbastts.......',
+    '......qrrRRRRlllll......',
+    '.....qrrrRRRRRRlRq......',
+    '.....bqqrrrrrrrrqd......',
+    '......abbbccccwde.......',
+    '......abbbcccwdde.......',
+    '......abbbccwcdde.......',
+    '......abbbcWccdde.......',
+    '.....abbbbwcccddde......',
+    '.....abbbwccccddde......',
+    '......bb.bc.ccd.d.......',
+    '.........ppPpPP.........',
+    '.........ppPpPP.........',
+    '.........oooooO.........',
+    '.........oooooO.........',
+    '.........oooooo.........',
+    '..........oo.oo.........',
+    ],
+    [8, 19],
+    [5, 20],
+  ),
+};
+
+/** How far the upper body leans forward at each load tier (pixels at the top of the head). */
+const LEAN = [0, 0, 0, 1, 2];
+
+/** Shears the rows above `pivot` forward (right) by up to `px` pixels at the top: the body leans into the load. */
+function lean(pose: PixelBuffer, px: number, pivot: number): PixelBuffer {
+  if (!px) return pose;
+  const out = new PixelBuffer(pose.w, pose.h);
+  for (let y = 0; y < pose.h; y++) {
+    const dx = y >= pivot ? 0 : Math.round((px * (pivot - y)) / pivot);
+    for (let x = 0; x < pose.w; x++) {
+      const c = pose.get(x, y);
+      if (c >>> 24) out.set(x + dx, y, c);
     }
   }
   return out;
@@ -458,65 +1289,33 @@ export interface ClimberSheet {
 }
 
 export function buildClimberSheet(): ClimberSheet {
-  const cols = BODY_FRAMES.length;
-  const sheet = new PixelBuffer(cols * FRAME_W, 5 * FRAME_H);
+  const sheet = new PixelBuffer(BODY_FRAMES.length * FRAME_W, 5 * FRAME_H);
   const frames: Record<BodyFrame, FrameInfo>[] = [];
   for (let tier = 0; tier < 5; tier++) {
     const row = {} as Record<BodyFrame, FrameInfo>;
     BODY_FRAMES.forEach((name, i) => {
-      let body: PixelBuffer;
-      let neck: [number, number];
-      let back: [number, number];
-      const special = SPECIAL[name];
-      const lying = name === 'stumble0' || name === 'stumble1';
-      if (special) {
-        body = specialFrame(special);
-        neck = [FEET_X + 3, 26];
-        back = [FEET_X - 4, 21];
-      } else {
-        const c = compose(POSES[name as keyof typeof POSES]);
-        body = c.buf;
-        neck = c.neck;
-        back = c.back;
-      }
-      if (tier >= 1 && !special) {
-        // shoulder strap crossing the chest
-        body = body.clone();
-        body.set(back[0] + 2, back[1] + 2, STRAP);
-        body.set(back[0] + 3, back[1] + 3, STRAP);
-        body.set(back[0] + 3, back[1] + 4, STRAP);
-      }
-      const pivot = FEET_Y - 5;
-      const leanPx = lying ? 0 : LEAN[tier];
-      const sagPx = lying ? 0 : SAG[tier];
-      body = sag(lean(body, leanPx, pivot), sagPx, pivot);
-      const shiftAt = (y: number) => (y >= pivot ? 0 : Math.round((leanPx * (pivot - y)) / 14));
-      neck = [neck[0] + shiftAt(neck[1]), neck[1] + sagPx];
-      back = [back[0] + shiftAt(back[1]), back[1] + sagPx];
-
+      const p = POSES[name];
+      // the pose grid sits on the frame's feet row, centred on FEET_X
+      const ox = FEET_X - Math.floor(p.grid.w / 2);
+      const oy = FEET_Y + 1 - p.grid.h;
+      const pivot = p.grid.h - 9;
+      const leanPx = p.lying ? 0 : LEAN[tier];
+      const body = lean(p.grid, leanPx, pivot);
+      const shift = (y: number) => (y >= pivot ? 0 : Math.round((leanPx * (pivot - y)) / pivot));
+      const pack = PACKS[tier];
+      // the pack hangs on the back (or, seen from behind, over it), its bottom near the belt
+      const bx = p.back[0] + shift(p.back[1]);
+      const px = ox + (p.front ? bx - Math.floor(pack.w / 2) : bx - pack.w + 3);
+      const py = oy + p.back[1] + PACK_DROP - pack.h;
       const frame = new PixelBuffer(FRAME_W, FRAME_H);
-      const pack = PACKS[tier]!;
-      // the pack hangs on the back: bottom near the belt, overlapping the body's back by 3px
-      let px = back[0] - pack.w + 3;
-      let py = back[1] + 7 - pack.h;
-      if (tier === 0) {
-        px = back[0] - 2;
-        py = back[1] + 5;
-      }
-      if (lying) {
-        px = FEET_X - 6;
-        py = FEET_Y - 3 - pack.h + 1;
-      } else if (special) {
-        px = back[0] - pack.w + 4;
-        py = back[1] + 4 - pack.h;
-      }
-      frame.blit(pack, px, py);
-      frame.blit(body, 0, 0);
-      frame.outline(OUTLINE);
+      if (!p.front) frame.blit(pack, px, py);
+      frame.blit(body, ox, oy);
+      if (p.front) frame.blit(pack, px, py);
+      frame.selout(OUTLINE, OUTLINE_MIX);
       const sx = i * FRAME_W;
       const sy = tier * FRAME_H;
       sheet.blit(frame, sx, sy);
-      row[name] = { sx, sy, neck, pack: [px, py, pack.w, pack.h] };
+      row[name] = { sx, sy, neck: [ox + p.neck[0] + shift(p.neck[1]), oy + p.neck[1]], pack: [px, py, pack.w, pack.h] };
     });
     frames.push(row);
   }

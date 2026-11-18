@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Game } from '../src/game/game';
 import { buildWorld, type LevelDef } from '../src/game/level';
 import type { PlayerInput } from '../src/game/player';
+import { TUNING } from '../src/game/tuning';
 import { blankScreen, put } from './helpers';
 
 /**
@@ -120,7 +121,7 @@ describe('game: gates, notes, ropes', () => {
     g.interact(); // rope
     // stand on the ledge next to the hook
     g.player.body.x = 30 * 8;
-    g.player.body.y = 20 * 8 - 18;
+    g.player.body.y = 20 * 8 - TUNING.bodyH;
     run(g, {}, 2);
     expect(g.interaction()?.label).toBe('Hang rope');
     g.interact();

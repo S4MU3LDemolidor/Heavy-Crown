@@ -6,7 +6,7 @@ import { makeBody, moveY, type Body } from './body';
 import type { World } from './level';
 import { Player, type LadderHit, type PlayerInput, type PlayerWorld } from './player';
 import { Tile } from './tiles';
-import { SCREEN_H, TILE } from './tuning';
+import { SCALE, SCREEN_H, TILE } from './tuning';
 
 /** Items lying in the world use an 8×8 box; x, y is its top-left. */
 export const ITEM_BOX = 8;
@@ -76,6 +76,9 @@ export interface Bell {
   h: number;
   /** Frames of swing left after ringing. */
   swing: number;
+  /** Its place in a tune (1 = first), and the tune's name: ringing a tune's bells in order sets flag `tune:<name>`. */
+  note?: number;
+  tune?: string;
 }
 
 export interface Altar {
@@ -129,7 +132,11 @@ export type GameEvent =
   | { type: 'scare'; id: string; kind: ScareKind; x: number; y: number }
   | { type: 'whisper'; x: number; y: number }
   | { type: 'echoMove'; x: number; y: number }
-  | { type: 'kingDelivered'; item: ItemId };
+  | { type: 'kingDelivered'; item: ItemId }
+  /** Tried to put down a burden. */
+  | { type: 'notYet' }
+  /** A cutscene starts; (x, y) is its anchor, the trigger's floor cell. */
+  | { type: 'cutscene'; id: string; x: number; y: number };
 
 export interface Interaction {
   label: string;
@@ -146,8 +153,8 @@ export interface Stats {
 }
 
 export interface SaveData {
-  /** Version 3: the tower with ledges kept clear of the screen edges (older saves hold positions from other layouts and start a new climb). */
-  v: 3;
+  /** Version 4: the remake's 15-level tower (older saves hold positions in other layouts and start a new climb). */
+  v: 4;
   player: { x: number; y: number; facing: 1 | -1 };
   carried: Carried[];
   items: { uid: number; id: ItemId; x: number; y: number; order: number }[];
@@ -170,7 +177,7 @@ export interface SaveData {
 /** Bucket lift price in gold (spec 5.3). */
 export const LIFT_PRICE = 10;
 /** Reach for talking to NPCs and using lift stations. */
-const TALK_REACH = 16;
+const TALK_REACH = 24;
 
 const rectsOverlap = (ax: number, ay: number, aw: number, ah: number, bx: number, by: number, bw: number, bh: number) =>
   ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah;
@@ -196,6 +203,8 @@ export class Game implements PlayerWorld, StoryHost {
   flags = new Set<string>();
   npcs: NpcInstance[] = [];
   lifts: LiftStation[] = [];
+  /** Cutscene triggers (remake spec 5.4); each fires once (flag `scene:<id>`). */
+  sceneTriggers: { id: string; x: number; y: number; w: number; h: number; ax: number; ay: number }[] = [];
   scares: ScareInstance[] = [];
   /** Options can turn scares off. */
   scaresEnabled = true;
@@ -240,6 +249,11 @@ export class Game implements PlayerWorld, StoryHost {
       if (s.entry.object === 'note') this.notes.push({ id: String(props.id), tx: s.tx, ty: s.ty });
       if (s.entry.object === 'plate') this.plates.push({ id: `${s.tx},${s.ty}`, tx: s.tx, ty: s.ty, link: String(props.link), need: Number(props.need ?? 3), pressed: false });
       if (s.entry.object === 'altar') this.altar = { tx: s.tx, ty: s.ty, placed: [], crownTaken: false };
+      if (s.entry.object === 'scene') {
+        const w = Number(props.w ?? 4) * TILE;
+        const h = Number(props.h ?? 5) * TILE;
+        this.sceneTriggers.push({ id: String(props.id), x: s.tx * TILE + TILE / 2 - w / 2, y: (s.ty + 1) * TILE - h, w, h, ax: s.tx * TILE, ay: this.floorBelow(s.tx, s.ty) });
+      }
       if (s.entry.object === 'ring') this.rings.push({ x: s.tx * TILE + TILE / 2, y: s.ty * TILE + TILE / 2 });
       if (s.entry.object === 'npc') {
         const feet = this.floorBelow(s.tx, s.ty);
@@ -259,7 +273,17 @@ export class Game implements PlayerWorld, StoryHost {
       const ys = cells.map((c) => c[1]);
       const x0 = Math.min(...xs);
       const y0 = Math.min(...ys);
-      return { id: `${x0},${y0}`, x: x0 * TILE, y: y0 * TILE, w: (Math.max(...xs) - x0 + 1) * TILE, h: (Math.max(...ys) - y0 + 1) * TILE, swing: 0 };
+      const spawn = this.world.spawns.find((s) => s.entry.kind === 'object' && s.entry.object === 'bell' && cells.some(([tx, ty]) => tx === s.tx && ty === s.ty));
+      const props = spawn?.entry.kind === 'object' ? (spawn.entry.props ?? {}) : {};
+      return {
+        id: `${x0},${y0}`,
+        x: x0 * TILE,
+        y: y0 * TILE,
+        w: (Math.max(...xs) - x0 + 1) * TILE,
+        h: (Math.max(...ys) - y0 + 1) * TILE,
+        swing: 0,
+        ...(props.note !== undefined ? { note: Number(props.note), tune: String(props.tune) } : {}),
+      };
     });
     // gates are vertical runs of gate cells
     for (const cell of gateCells.values()) {
@@ -406,7 +430,7 @@ export class Game implements PlayerWorld, StoryHost {
   windAt(_x: number, y: number): number {
     const dir = this.world.bandWind[Math.floor(y / SCREEN_H)] ?? 0;
     if (dir === 0 || this.gust().phase !== 'gust') return 0;
-    return 0.06 * dir;
+    return 0.06 * SCALE * dir;
   }
 
   ladderAt(x: number, y: number, w: number, h: number): LadderHit | null {
@@ -493,10 +517,26 @@ export class Game implements PlayerWorld, StoryHost {
       const pb = this.player.body;
       for (const b of this.bells) {
         if (!rectsOverlap(pb.x - 2, pb.y - 2, pb.w + 4, pb.h + 4, b.x, b.y, b.w, b.h)) continue;
-        b.swing = 40;
-        this.events.push({ type: 'bell', x: b.x + b.w / 2, y: b.y + b.h / 2, big: e.type === 'land' && e.fall > 40 });
+        this.ringBell(b, e.type === 'land' && e.fall > 40);
       }
     }
+  }
+
+  /** How far into each tune the bells have been rung in order. */
+  private tuneAt = new Map<string, number>();
+
+  /** Rings a bell; a bell in a tune moves the tune on (or starts it over), and the last note sets `tune:<name>`. */
+  ringBell(b: Bell, big = false): void {
+    b.swing = 40;
+    this.events.push({ type: 'bell', x: b.x + b.w / 2, y: b.y + b.h / 2, big });
+    if (!b.tune || b.note === undefined) return;
+    const at = this.tuneAt.get(b.tune) ?? 0;
+    const next = b.note === at + 1 ? at + 1 : b.note === 1 ? 1 : 0;
+    const length = this.bells.filter((x) => x.tune === b.tune).length;
+    if (next === length) {
+      this.flags.add(`tune:${b.tune}`);
+      this.tuneAt.set(b.tune, 0);
+    } else this.tuneAt.set(b.tune, next);
   }
 
   /** Stones resting on a strip of floor whose top is at y, from x0 to x1 (pixels). */
@@ -626,7 +666,7 @@ export class Game implements PlayerWorld, StoryHost {
         const relic = this.carried.find((c) => ITEMS[c.id].kind === 'relic');
         const cx0 = ax + TILE * 1.5;
         if (relic) return { label: `Place ${ITEMS[relic.id].name}`, x: cx0, y: ay - 6, run: () => this.placeRelic(relic) };
-        if (a.placed.length >= 3 && !a.crownTaken) return { label: 'Lift the crown', x: cx0, y: ay - 6, run: () => this.liftCrown() };
+        if (a.placed.length >= 3 && !a.crownTaken) return { label: 'Kneel beside her', x: cx0, y: ay - 6, run: () => this.events.push({ type: 'cutscene', id: 'summit', x: a.tx * TILE, y: (a.ty + 1) * TILE }) };
         if (!a.crownTaken) {
           const missing = 3 - a.placed.length;
           return { label: `The altar waits for ${missing} more relic${missing === 1 ? '' : 's'}`, x: cx0, y: ay - 6, run: () => undefined };
@@ -726,12 +766,19 @@ export class Game implements PlayerWorld, StoryHost {
     this.events.push({ type: 'relic', item: relic.id, x: this.altar.tx * TILE + 4, y: this.altar.ty * TILE });
   }
 
-  private liftCrown(): void {
-    if (!this.altar) return;
-    this.altar.crownTaken = true;
-    this.carried.push({ uid: this.nextUid++, id: 'crown' });
+  /** Puts an item straight into the pack (The Words at the start of a climb, debug tools). */
+  give(id: ItemId): void {
+    this.carried.push({ uid: this.nextUid++, id });
+    this.selected = this.carried.length - 1;
     this.updateLoadout();
-    this.events.push({ type: 'crown', x: this.altar.tx * TILE + 4, y: this.altar.ty * TILE });
+  }
+
+  /** The climb ends (remake spec 2.4): letting go takes The Words out of the pack; either way the crown is lifted. */
+  endWith(ending: 'letGo' | 'holdOn'): void {
+    if (ending === 'letGo') this.carried = this.carried.filter((c) => c.id !== 'words');
+    this.flags.add(`ending:${ending}`);
+    if (this.altar) this.altar.crownTaken = true;
+    this.updateLoadout();
   }
 
   // ---------- story: conditions, effects, gold, lifts, NPC behaviour, scares ----------
@@ -797,7 +844,7 @@ export class Game implements PlayerWorld, StoryHost {
     const st = this.lifts.find((l) => l.key === stationKey);
     const next = st && this.liftNext(st);
     const item = this.carried[carriedIndex];
-    if (!st || !next || !item) return false;
+    if (!st || !next || !item || ITEMS[item.id].kind === 'burden') return false;
     this.carried.splice(carriedIndex, 1);
     if (!this.payGold(LIFT_PRICE)) {
       this.carried.splice(carriedIndex, 0, item);
@@ -866,6 +913,15 @@ export class Game implements PlayerWorld, StoryHost {
         }
       }
     }
+    if (p.state === 'ground') {
+      const b = p.body;
+      for (const s of this.sceneTriggers) {
+        if (this.flags.has(`scene:${s.id}`)) continue;
+        if (!(b.x < s.x + s.w && s.x < b.x + b.w && b.y < s.y + s.h && s.y < b.y + b.h)) continue;
+        this.flags.add(`scene:${s.id}`);
+        this.events.push({ type: 'cutscene', id: s.id, x: s.ax, y: s.ay });
+      }
+    }
     if (this.scaresEnabled) {
       const b = p.body;
       for (const s of this.scares) {
@@ -904,6 +960,10 @@ export class Game implements PlayerWorld, StoryHost {
     if (p.state !== 'ground') return false;
     const c = this.carried[index];
     if (!c) return false;
+    if (ITEMS[c.id].kind === 'burden') {
+      this.events.push({ type: 'notYet' });
+      return false;
+    }
     this.carried.splice(index, 1);
     this.selectNewest();
     const x = Math.round(p.body.x + p.body.w / 2 - ITEM_BOX / 2);
@@ -929,7 +989,7 @@ export class Game implements PlayerWorld, StoryHost {
 
   save(): SaveData {
     return {
-      v: 3,
+      v: 4,
       player: { x: this.player.body.x, y: this.player.body.y, facing: this.player.facing },
       carried: this.carried.map((c) => ({ ...c })),
       items: this.items.map((it) => ({ uid: it.uid, id: it.id, x: it.body.x, y: it.body.y, order: it.order })),

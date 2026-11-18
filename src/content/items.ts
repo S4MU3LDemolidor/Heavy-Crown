@@ -22,10 +22,11 @@ export const ITEM_IDS = [
   'crown',
   'claws',
   'hook',
+  'words',
 ] as const;
 
 export type ItemId = (typeof ITEM_IDS)[number];
-export type ItemKind = 'key' | 'tool' | 'treasure' | 'relic' | 'charm' | 'crown';
+export type ItemKind = 'key' | 'tool' | 'treasure' | 'relic' | 'charm' | 'crown' | 'burden';
 
 export interface ItemDef {
   id: ItemId;
@@ -70,6 +71,7 @@ export const ITEMS: Record<ItemId, ItemDef> = {
   crown: { id: 'crown', name: 'The Crown', weight: 6, kind: 'crown', light: 40, desc: 'The crown.' },
   claws: { id: 'claws', name: 'Climbing Claws', weight: 2, kind: 'tool', onPack: true, desc: 'Iron hooks for the hands. Hold toward ivy or rough stone to cling to it and climb. They will not hold more than twelve stones.', use: 'Jump at ivy or rough stone and hold {left} or {right} toward it to cling. Climb with {up} and {down}; press {jump} to leap off.' },
   hook: { id: 'hook', name: 'Grappling Hook', weight: 3, kind: 'tool', onPack: true, desc: 'A hook on a long rope. Fire it at an iron ring to be pulled up to it. Heavier loads pull slower.', use: 'Press {hook} to fire it at an iron ring above you. Hold {up}, {left} or {right} to aim.' },
+  words: { id: 'words', name: 'The Words', weight: 1, kind: 'burden', desc: 'What you shouted the night she left: "If you go, don\'t ever come back." You have carried it for ten years.', use: 'You cannot put this down. Not yet.' },
 };
 
 export const RELICS: ItemId[] = ['orb', 'scepter', 'seal'];

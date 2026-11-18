@@ -1,6 +1,6 @@
 import { makeBody, moveX, moveY, onGround, type Body } from './body';
 import type { CollisionWorld } from './tiles';
-import { TILE, TUNING } from './tuning';
+import { SCALE, TILE, TUNING } from './tuning';
 import { chargeFramesFor, isOverloaded, jumpHeight, jumpHeightFactor, jumpSpeedXFactor, launchSpeed, walkFactor, type JumpMods } from './weight';
 
 export type PlayerState = 'ground' | 'charge' | 'air' | 'stumble' | 'ladder' | 'cling' | 'pull' | 'hang';
@@ -37,19 +37,19 @@ export interface PlayerWorld extends CollisionWorld {
 }
 
 /** Ice friction (spec section 4). */
-const ICE_ACCEL = 0.04;
-const ICE_DECEL = 0.03;
+const ICE_ACCEL = 0.04 * SCALE;
+const ICE_DECEL = 0.03 * SCALE;
 const WATER_WALK = 0.6;
-const MAX_WIND_VX = 3.5;
+const MAX_WIND_VX = 3.5 * SCALE;
 
 /** Climbing Claws and Grappling Hook (full-game spec sections 3–4). */
-const CLIMB_SPEED = 0.6;
-const HEAVY_SLIDE = 1;
+const CLIMB_SPEED = 0.6 * SCALE;
+const HEAVY_SLIDE = 1 * SCALE;
 const CLING_MAX_STONES = 12;
 const HEAVY_CLING = 9;
-const WALL_JUMP_HEIGHT = 40;
-const WALL_JUMP_SPEED = 1.6;
-export const HOOK_RANGE = 96;
+const WALL_JUMP_HEIGHT = 40 * SCALE;
+const WALL_JUMP_SPEED = 1.6 * SCALE;
+export const HOOK_RANGE = 96 * SCALE;
 const HOOK_COOLDOWN = 20;
 
 export type PlayerEvent =
@@ -84,7 +84,7 @@ export interface PlayerLoadout {
 }
 
 /** Pixels trimmed from each side of the body while on a ladder. */
-const LADDER_INSET = 2;
+const LADDER_INSET = 3;
 
 export class Player {
   readonly body: Body;
@@ -366,7 +366,7 @@ export class Player {
     const stones = this.loadout.stones;
     // overloaded: the rope only strains and the climber dangles where they are
     if (isOverloaded(stones)) return;
-    const speed = Math.max(1.2, 4 * (1 - 0.04 * stones));
+    const speed = Math.max(1.2 * SCALE, 4 * SCALE * (1 - 0.04 * stones));
     const tx = this.ring.x - this.body.w / 2;
     const ty = this.ring.y + 3;
     const dx = tx - this.body.x;
@@ -535,7 +535,7 @@ export class Player {
       this.leaveGround();
       return;
     }
-    const speed = 0.8 * walkFactor(this.loadout.stones);
+    const speed = 0.8 * SCALE * walkFactor(this.loadout.stones);
     let dy = input.up ? -speed : input.down ? speed : 0;
     // the climb stops when the feet reach the ledge at the ladder's top
     const topFeet = hit.top + TILE;

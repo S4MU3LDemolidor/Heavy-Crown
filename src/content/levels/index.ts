@@ -1,34 +1,22 @@
 import type { LevelDef } from '../../game/level';
-import { L1 } from './l1-overgrown-base';
-import { L02 } from './gen/l02';
-import { L03 } from './gen/l03';
-import { L04 } from './gen/l04';
-import { L05 } from './gen/l05';
-import { L06 } from './gen/l06';
-import { L2 } from './l2-drowned-cistern';
-import { L08 } from './gen/l08';
-import { L09 } from './gen/l09';
-import { L10 } from './gen/l10';
-import { L11 } from './gen/l11';
-import { L12 } from './gen/l12';
-import { L3 } from './l3-bell-hall';
-import { L14 } from './gen/l14';
-import { L15 } from './gen/l15';
-import { L16 } from './gen/l16';
-import { L17 } from './gen/l17';
-import { L18 } from './gen/l18';
-import { L4 } from './l4-lightless-floors';
-import { L20 } from './gen/l20';
-import { L21 } from './gen/l21';
-import { L22 } from './gen/l22';
-import { L23 } from './gen/l23';
-import { L24 } from './gen/l24';
-import { L5 } from './l5-frozen-spire';
-import { L26 } from './gen/l26';
-import { L27 } from './gen/l27';
-import { L28 } from './gen/l28';
-import { L29 } from './gen/l29';
-import { L30 } from './gen/l30';
+import { L01 } from './l01-foot-of-the-tower';
+import { L02 } from './l02-root-stair';
+import { L03 } from './l03-hoarders-hollow';
+import { L04 } from './l04-sunken-gate';
+import { L05 } from './l05-nells-landing';
+import { L06 } from './l06-orbs-crown';
+import { L07 } from './l07-bell-hall';
+import { L08 } from './l08-ringers-loft';
+import { L09 } from './l09-silent-bell';
+import { L10 } from './l10-lightless-floors';
+import { L11 } from './l11-whispering-stair';
+import { L12 } from './l12-ossuary';
+import { L13 } from './l13-frozen-spire';
+import { L14 } from './l14-king-in-the-ice';
+import { L15 } from './l15-summit';
 
-/** The tower's levels, bottom to top. */
-export const LEVELS: LevelDef[] = [L1, L02, L03, L04, L05, L06, L2, L08, L09, L10, L11, L12, L3, L14, L15, L16, L17, L18, L4, L20, L21, L22, L23, L24, L5, L26, L27, L28, L29, L30];
+/** The tower's levels, bottom to top (remake: 15 hand-made levels, 3 per act; filled in by plans 4–8). */
+export const LEVELS: LevelDef[] = [L01, L02, L03, L04, L05, L06, L07, L08, L09, L10, L11, L12, L13, L14, L15];
+
+/** Levels per act: Act n is levels (n-1)*3+1 .. n*3. */
+export const LEVELS_PER_ACT = 3;

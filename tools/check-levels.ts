@@ -6,8 +6,7 @@
  */
 import { LEVELS } from '../src/content/levels';
 import type { LevelDef } from '../src/game/level';
-import { reaches, reachOpts, type Move } from './levelgen/gen';
-import { SPECS } from './levelgen/specs';
+import { reaches, reachOpts, type Move } from './reachLib';
 
 type Cell = [screen: number, tx: number, ty: number];
 type Open = 'all' | 'keys' | 'none';
@@ -18,7 +17,7 @@ let failed = 0;
 let count = 0;
 
 /** Checks reachability within the levels around `id` (one below, one above). */
-function check(label: string, id: number, from: Cell, to: { id: number; cell: Cell }, opts: { stones?: number; moves?: Move[]; cloak?: boolean; open?: Open }, expect: boolean): void {
+function check(label: string, id: number, from: Cell, to: { id: number; cell: Cell }, opts: { stones?: number; moves?: Move[]; cloak?: boolean; open?: Open; ropes?: boolean }, expect: boolean): void {
   count++;
   const levels: LevelDef[] = [byId(id - 1), byId(id), byId(id + 1)].filter(Boolean);
   const li = levels.indexOf(byId(id));
@@ -34,6 +33,8 @@ function check(label: string, id: number, from: Cell, to: { id: number; cell: Ce
       const open = opts.open ?? 'all';
       for (const g of game.gates) g.open = open === 'all' || (open === 'keys' && !g.link && !g.flag);
       for (const w of game.cracked) w.broken = open !== 'none';
+      // every rope hook has a rope hung on it, when asked
+      if (opts.ropes) for (const h of game.hooks) h.ropeUid = -1;
       return { ...reachOpts(level, game, opts.moves, opts.cloak), ...(opts.stones !== undefined ? { stones: opts.stones } : {}) };
     },
   );
@@ -46,24 +47,33 @@ function check(label: string, id: number, from: Cell, to: { id: number; cell: Ce
 for (const l of LEVELS) {
   if (only.size && !only.has(l.id)) continue;
   const next = byId(l.id + 1);
-  const cloak = l.theme === 'frozen' && l.id > 25;
+  const cloak = l.theme === 'frozen' && l.id > 13;
   const to = next ? { id: next.id, cell: next.entry! } : { id: l.id, cell: l.exit! };
   const what = [`${l.load} st`, ...(l.needs ?? []), ...(cloak ? ['fur cloak'] : [])].join(', ');
   check(`level ${l.id}: climbs ${next ? `into level ${next.id}` : 'to the summit'} carrying ${what}`, l.id, l.entry!, to, { cloak }, true);
-  const spec = SPECS.find((s) => s.id === l.id);
-  for (const m of spec?.requires ?? []) {
+  for (const m of l.requires ?? []) {
     check(`level ${l.id}: cannot be climbed without the ${m}`, l.id, l.entry!, to, { moves: (l.needs ?? []).filter((x) => x !== m), cloak }, false);
   }
 }
 
-// the hand-made rules
+// the hand-made rules (remake: written with each act)
 const RULES: { id: number; run: () => void }[] = [
-  { id: 1, run: () => check('level 1: the iron gate cannot be bypassed', 1, byId(1).entry!, { id: 1, cell: [1, 45, 2] }, { stones: 0, open: 'none' }, false) },
-  { id: 7, run: () => check('level 7: the plate gate guards the Spring Boots', 7, [3, 44, 30], { id: 7, cell: [2, 5, 12] }, { stones: 0, open: 'keys' }, false) },
-  { id: 13, run: () => check('level 13 can be climbed without the Bell Key or the Pickaxe', 13, byId(13).entry!, { id: 13, cell: byId(13).exit! }, { stones: 7, open: 'none' }, true) },
-  { id: 19, run: () => check('level 19: the ossuary door guards its chalice', 19, byId(19).entry!, { id: 19, cell: [0, 52, 25] }, { stones: 2, open: 'none' }, false) },
-  { id: 30, run: () => check('level 30: one relic, Crampons and Fur Cloak (7 st) reach the summit', 30, byId(30).entry!, { id: 30, cell: byId(30).exit! }, { stones: 7, cloak: true }, true) },
-  { id: 30, run: () => check('level 30: two relics, Crampons and Fur Cloak (11 st) cannot', 30, byId(30).entry!, { id: 30, cell: byId(30).exit! }, { stones: 11, cloak: true }, false) },
+  // Act I
+  { id: 2, run: () => check('level 2: the iron gate cannot be bypassed', 2, byId(2).entry!, { id: 2, cell: byId(2).exit! }, { open: 'none' }, false) },
+  { id: 2, run: () => check('level 2: the key pit cannot be climbed out of without the rope', 2, [1, 40, 28], { id: 2, cell: [1, 33, 13] }, { open: 'none' }, false) },
+  { id: 2, run: () => check('level 2: with the rope hung, the key pit can be climbed out of', 2, [1, 40, 28], { id: 2, cell: [1, 33, 13] }, { open: 'none', ropes: true }, true) },
+  // Act II
+  { id: 4, run: () => check('level 4: the plate gate cannot be bypassed', 4, byId(4).entry!, { id: 4, cell: byId(4).exit! }, { open: 'keys' }, false) },
+  { id: 5, run: () => check('level 5: the plate gate guards the Spring Boots', 5, byId(5).entry!, { id: 5, cell: [2, 6, 21] }, { open: 'keys' }, false) },
+  // Act III
+  { id: 8, run: () => check('level 8: the door is sealed until the loft is rung', 8, byId(8).entry!, { id: 8, cell: byId(8).exit! }, { open: 'keys', moves: ['claws', 'hook'] }, false) },
+  { id: 9, run: () => check('level 9: the Bell Door guards the idol', 9, byId(9).entry!, { id: 9, cell: [2, 5, 15] }, { open: 'none', moves: ['claws', 'hook'] }, false) },
+  // Act IV
+  { id: 11, run: () => check('level 11: the cracked wall cannot be bypassed', 11, byId(11).entry!, { id: 11, cell: byId(11).exit! }, { open: 'none', moves: ['claws', 'hook'] }, false) },
+  { id: 12, run: () => check('level 12: the bone door guards the Seal', 12, byId(12).entry!, { id: 12, cell: [0, 6, 25] }, { open: 'none', moves: ['claws', 'hook'] }, false) },
+  // Act V: the summit is reached carrying one relic at a time
+  { id: 15, run: () => check('level 15: one relic, Crampons and Fur Cloak (8 st) reach the summit', 15, byId(15).entry!, { id: 15, cell: byId(15).exit! }, { stones: 8, cloak: true }, true) },
+  { id: 15, run: () => check('level 15: two relics (12 st) cannot', 15, byId(15).entry!, { id: 15, cell: byId(15).exit! }, { stones: 12, cloak: true }, false) },
 ];
 for (const r of RULES) if (!only.size || only.has(r.id)) r.run();
 

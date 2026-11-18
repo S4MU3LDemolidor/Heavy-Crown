@@ -1,33 +1,62 @@
-/** The story text (spec section 1b). The pilgrim is never gendered. */
+/** The story text (remake spec section 2). Wren is never gendered. */
 export const INTRO_LINES = [
   'The sun has not risen in a hundred years.',
-  'Ten years ago, my mother climbed the tower to bring it back.',
-  'She never came down.',
+  'Ten years ago my mother, Maren, climbed the tower to bring it back.',
+  '"When you hear the summit bell," she said, "I made it. I am coming home."',
+  'The night she left, I told her not to come back.',
+  'Tonight, the bell rang.',
+]
+
+/** Maren's notes, one per level (remake spec 2.5): what she carried, what she left, the night she left. */
+export const NOTES: Record<string, { title: string; text: string }> = {
+  // Act I
+  note1: { title: "Maren's note", text: 'First night in the tower. I can still see our window from here, the lamp you leave on for me. I packed everything I own. The tower laughed at me on the first ledge.' },
+  note2: { title: "Maren's note", text: 'The rope was the cleverest thing I carried and the thing I nearly left behind. I keep reaching into the pack for things that are not there. Your drawing. Your little shoes. I should not have brought those.' },
+  note3: { title: "Maren's note", text: 'The hoarder sold me claws and asked what I would never put down. I said nothing. I meant you. I meant leaving you.' },
+  // Act II
+  note4: { title: "Maren's note", text: 'The water down here is cold enough to stop a heart. Something lives in it. It took hold of my ankle and let go again, as if it were only checking what I weighed.' },
+  note5: { title: "Maren's note", text: "Sent my books up in Nell's bucket today, and your drawing with them, the house with the lamp in the window. I could not carry it any further. I told myself it was the paper that was heavy." },
+  note6: { title: "Maren's note", text: 'The Orb. It hums like a hive. The altar wants three of these and I can barely carry one. I keep hearing what you said that night. You had every right to say it.' },
+  // Act III
+  note7: { title: "Maren's note", text: 'The bells ring when you land on them, like someone counting. I counted with them. One for each year old you would be by the time I came home.' },
+  note8: { title: "Maren's note", text: 'I asked the ringer to call you if I never came back. It is the worst thing I have done in this tower, and I have done it twice: I left you, and then I called you after me.' },
+  note9: { title: "Maren's note", text: 'The Scepter. Too heavy to carry higher today, so I sat beside it and cried until the great bell rang by itself. Something was sitting on it. It looked at me the way you did when I put my boots on.' },
+  // Act IV
+  note10: { title: "Maren's note", text: 'I am leaving my lantern here, burning, so I can find my way back down. I do not think I am coming back down. Leave it burning anyway.' },
+  note11: { title: "Maren's note", text: 'The faceless ones whisper. Not their words. Mine. Everything I should have said to you, and the one thing you said to me.' },
+  note12: { title: "Maren's note", text: 'Sent the crow down to you today. It argued. It is the only one up here who argues. Look after my child, I told it. It said it would, and that it would complain the whole time.' },
+  // Act V
+  note13: { title: "Maren's note", text: 'Ice. My boots slide as if they want to go home. I keep seeing you at the door that night, your fists so small, and I keep walking.' },
+  note14: { title: "Maren's note", text: 'A king in the ice begged me for the relics. I gave him nothing. I have been so afraid of losing what I carry that I have lost everything else.' },
+  note15: { title: "Maren's last note", text: 'The altar wants the heaviest thing I carry. I know what it is. It is you, and the door I walked out of. I cannot put it down. I asked the ringer to call you. I am sorry, my love. Climb lighter than I did.' },
+};
+
+/** What the Hollow Ones whisper when they reach Wren (remake spec 2.3): Wren's own words, and the tower's. */
+export const WHISPERS = [
+  '...if you go...',
+  "...don't ever come back...",
+  '...what are you carrying...',
+  "...she isn't coming home...",
+  "...put it down. you can't, can you...",
 ];
 
-export const NOTES: Record<string, { title: string; text: string }> = {
-  note1: { title: "Maren's note", text: 'I packed everything I own. Rope, books, bread, my good boots. The tower laughed at me on the first ledge.' },
-  note6: { title: "Maren's note", text: 'Claws, found in the ivy, still on the hand of someone who did not need them any more. My hands bleed less now. I try not to think about whose they were.' },
-  note2: { title: "Maren's note", text: 'Left my books by the water. Words are heavy when they are wet. I kept the map.' },
-  note7: { title: "Maren's note", text: 'A hook, and rings set in the walls. Someone put these here expecting to come back. Nobody comes back.' },
-  note8: { title: "Maren's note", text: 'The Orb. It hums like a hive. I can carry it, barely. Nell says the buckets go all the way to the bells. I will trust the buckets.' },
-  note9: { title: "Maren's note", text: 'The old woman says the bells remember every climber. She says she heard me before I came. I believe her. I am very loud now.' },
-  note3: { title: "Maren's note", text: 'The bells ring when you land on them, like someone counting. I found the Scepter. I am too heavy to bring it higher today.' },
-  note4: { title: "Maren's note", text: 'I left my lantern burning at the edge of the dark, so I could find my way back down. I never came back for it.' },
-  note10: { title: "Maren's note", text: 'Something stands in the dark when I look away. It asked what I carry. I did not answer. I think it knows anyway.' },
-  note11: { title: "Maren's note", text: 'The Seal. Everything is so heavy. I sent the Orb up in the bucket and wept, because I did not know if I would ever see it again.' },
-  note12: { title: "Maren's note", text: 'There is a man in the ice who says he was king. He begged me for the relics. I gave him nothing. I should have given him something.' },
-  note5: { title: "Maren's note", text: 'The altar wants all three. I can carry only one at a time, and I am so tired. If you are reading this, climb lighter than I did.' },
-  scarf: { title: "Maren's scarf", text: 'A red scarf, the twin of yours, tied to the altar. It is stiff with frost. She made it this far.' },
-};
-
-/** The thirty levels' names (full-game spec section 2). */
+/** The fifteen levels' names (remake spec section 4.2). */
 export const LEVEL_NAMES: Record<number, string> = {
-  1: 'The Overgrown Base', 2: 'The Root Stair', 3: "The Hoarder's Hollow", 4: 'The Ivy Wall', 5: "Crow's Rest", 6: 'The Sunken Gate',
-  7: 'The Drowned Cistern', 8: "Nell's Landing", 9: 'The Black Pool', 10: 'The Ring Vault', 11: 'The Weir', 12: "The Orb's Crown",
-  13: 'The Bell Hall', 14: "The Ringer's Loft", 15: 'The Silent Bell', 16: 'The Broken Clock', 17: 'The Bell Tune', 18: 'The Last Light',
-  19: 'The Lightless Floors', 20: 'The Standing Dark', 21: 'The Whispering Stair', 22: "The Peddler's Candle", 23: 'The Breathing Hall', 24: 'The Ossuary',
-  25: 'The Frozen Spire', 26: 'The White Stair', 27: 'The Echo', 28: 'The King in the Ice', 29: 'The Last Climb', 30: 'The Summit',
+  1: 'The Foot of the Tower', 2: 'The Root Stair', 3: "The Hoarder's Hollow",
+  4: 'The Sunken Gate', 5: "Nell's Landing", 6: "The Orb's Crown",
+  7: 'The Bell Hall', 8: "The Ringer's Loft", 9: 'The Silent Bell',
+  10: 'The Lightless Floors', 11: 'The Whispering Stair', 12: 'The Ossuary',
+  13: 'The Frozen Spire', 14: 'The King in the Ice', 15: 'The Summit',
 };
 
-export const ENDING_LINES = ['The crown was heavy.', 'But I did not carry it alone.'];
+/** The closing lines of the two endings (remake spec 2.4). */
+export const ENDINGS: Record<'letGo' | 'holdOn', { title: string; lines: string[] }> = {
+  letGo: {
+    title: 'Let go',
+    lines: ['I put the words down at last.', 'So did she.', 'The crown was light after that.', 'The sun came up, and we walked down into it together.'],
+  },
+  holdOn: {
+    title: 'Hold on',
+    lines: ['I kept the words. I kept the crown.', 'The sun came up, and she walked down into it.', 'Someone has to hold it.', 'Maybe one day someone will climb for me.'],
+  },
+};

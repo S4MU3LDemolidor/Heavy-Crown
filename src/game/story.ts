@@ -42,6 +42,10 @@ export interface Choice {
 export interface DNode {
   id: string;
   text: string;
+  /** Who says it: 'wren', or (by default) the NPC being talked to. */
+  who?: string;
+  /** The speaker's portrait expression (default 'neutral'). */
+  face?: string;
   choices?: Choice[];
   do?: Effect[];
   next?: string;
@@ -108,6 +112,9 @@ export interface ScareInstance {
 
 /** What a conversation step shows: text, and choices with whether each is available. */
 export interface DialogueView {
+  /** The speaker: 'wren' or an NPC id; their portrait and name. */
+  who: string;
+  face: string;
   name: string;
   text: string;
   choices: { label: string; enabled: boolean }[];
@@ -159,8 +166,11 @@ export class DialogueRunner {
 
   view(): DialogueView | null {
     if (!this.node) return null;
+    const who = this.node.who ?? this.def.id;
     return {
-      name: this.def.name,
+      who,
+      face: this.node.face ?? 'neutral',
+      name: who === 'wren' ? 'Wren' : this.def.name,
       text: this.node.text,
       choices: (this.node.choices ?? []).map((c) => ({ label: c.label, enabled: this.host.check(c.if) })),
     };
