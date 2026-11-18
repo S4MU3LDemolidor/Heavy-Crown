@@ -1,18 +1,5 @@
 import type { LevelDef } from '../../game/level';
-import { SCREEN_COLS, SCREEN_ROWS } from '../../game/tuning';
-
-type Fill = [x: number, y: number, w: number, h: number, ch: string];
-
-/** One 60×34 screen from rectangles of characters, with outer walls. */
-function screen(fills: Fill[]): string[] {
-  const g = Array.from({ length: SCREEN_ROWS }, () => Array<string>(SCREEN_COLS).fill(' '));
-  for (const row of g) {
-    row[0] = '#';
-    row[SCREEN_COLS - 1] = '#';
-  }
-  for (const [x, y, w, h, ch] of fills) for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) g[y + j][x + i] = ch;
-  return g.map((r) => r.join(''));
-}
+import { blockout } from './blockout';
 
 /**
  * A playground for the Climbing Claws and the Grappling Hook (?moves). Bottom screen: an ivy wall,
@@ -26,7 +13,7 @@ export const TEST_MOVES: LevelDef = {
     k: { kind: 'item', item: 'hook' },
   },
   screens: [
-    screen([
+    blockout([
       [1, 31, 10, 1, '#'],
       [18, 26, 8, 1, '#'],
       [12, 4, 3, 22, '%'], // ivy wall reaching the top
@@ -36,7 +23,7 @@ export const TEST_MOVES: LevelDef = {
       [40, 7, 1, 1, '*'],
       [46, 2, 12, 1, '#'], // the top
     ]),
-    screen([
+    blockout([
       [1, 31, 58, 3, '#'], // floor
       [3, 30, 1, 1, '@'],
       [6, 30, 1, 1, 'c'],

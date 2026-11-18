@@ -45,7 +45,7 @@ function check(label: string, id: number, from: Cell, to: { id: number; cell: Ce
 for (const l of LEVELS) {
   if (only.size && !only.has(l.id)) continue;
   const next = byId(l.id + 1);
-  const cloak = l.theme === 'frozen' && l.id > 25;
+  const cloak = l.theme === 'frozen' && l.id > 13;
   const to = next ? { id: next.id, cell: next.entry! } : { id: l.id, cell: l.exit! };
   const what = [`${l.load} st`, ...(l.needs ?? []), ...(cloak ? ['fur cloak'] : [])].join(', ');
   check(`level ${l.id}: climbs ${next ? `into level ${next.id}` : 'to the summit'} carrying ${what}`, l.id, l.entry!, to, { cloak }, true);
@@ -54,15 +54,8 @@ for (const l of LEVELS) {
   }
 }
 
-// the hand-made rules
-const RULES: { id: number; run: () => void }[] = [
-  { id: 1, run: () => check('level 1: the iron gate cannot be bypassed', 1, byId(1).entry!, { id: 1, cell: [1, 45, 2] }, { stones: 0, open: 'none' }, false) },
-  { id: 7, run: () => check('level 7: the plate gate guards the Spring Boots', 7, [3, 44, 30], { id: 7, cell: [2, 5, 12] }, { stones: 0, open: 'keys' }, false) },
-  { id: 13, run: () => check('level 13 can be climbed without the Bell Key or the Pickaxe', 13, byId(13).entry!, { id: 13, cell: byId(13).exit! }, { stones: 7, open: 'none' }, true) },
-  { id: 19, run: () => check('level 19: the ossuary door guards its chalice', 19, byId(19).entry!, { id: 19, cell: [0, 52, 25] }, { stones: 2, open: 'none' }, false) },
-  { id: 30, run: () => check('level 30: one relic, Crampons and Fur Cloak (7 st) reach the summit', 30, byId(30).entry!, { id: 30, cell: byId(30).exit! }, { stones: 7, cloak: true }, true) },
-  { id: 30, run: () => check('level 30: two relics, Crampons and Fur Cloak (11 st) cannot', 30, byId(30).entry!, { id: 30, cell: byId(30).exit! }, { stones: 11, cloak: true }, false) },
-];
+// the hand-made rules (remake: written with each act, plans 4–8)
+const RULES: { id: number; run: () => void }[] = [];
 for (const r of RULES) if (!only.size || only.has(r.id)) r.run();
 
 console.log(failed ? `\n${failed} of ${count} checks failed` : `\nall ${count} checks passed`);

@@ -1,4 +1,5 @@
 import { rasterText, textWidth } from '../art/font';
+import { LEVELS_PER_ACT } from '../content/levels';
 import { NOTES } from '../content/story';
 import type { Game } from '../game/game';
 import { THEMES } from '../content/themes';
@@ -161,7 +162,7 @@ export function mapThumb(game: Game, band: number): HTMLCanvasElement {
 export function drawMap(ctx: CanvasRenderingContext2D, game: Game, act: number, thumb: (band: number) => HTMLCanvasElement | null, hint: string): void {
   dimScreen(ctx, 0.85);
   const w = game.world;
-  const ids = [1, 2, 3, 4, 5, 6].map((k) => (act - 1) * 6 + k);
+  const ids = Array.from({ length: LEVELS_PER_ACT }, (_, k) => (act - 1) * LEVELS_PER_ACT + k + 1);
   const cols = ids.map((id) => w.levels.findIndex((l) => l.id === id)).filter((li) => li >= 0);
   const theme = cols.length ? THEMES[w.levels[cols[0]].theme] : null;
   drawTextCentered(ctx, `Maren's map  -  ${theme ? `${theme.numeral}. ${theme.title}` : ''}`, VIEW_W / 2, 8, UI.gold);

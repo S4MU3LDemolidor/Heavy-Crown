@@ -1,4 +1,4 @@
-import { LEVELS } from './content/levels';
+import { LEVELS, LEVELS_PER_ACT } from './content/levels';
 import { TEST_MOVES } from './content/levels/test-moves';
 import { TEST_TOWER } from './content/levels/test-tower';
 import { Audio } from './engine/audio';
@@ -412,7 +412,7 @@ function update(): void {
         const pick = items[mode.sel];
         if (pick === 'Resume') mode = { kind: 'play' };
         else if (pick === 'Journal') mode = { kind: 'journal', page: Math.max(0, game.notesRead.size - 1) };
-        else if (pick === 'Map') mode = { kind: 'map', act: Math.ceil(world.levels[world.bandLevel[camera.band]].id / 6) };
+        else if (pick === 'Map') mode = { kind: 'map', act: Math.ceil(world.levels[world.bandLevel[camera.band]].id / LEVELS_PER_ACT) };
         else if (pick === 'Options') mode = { kind: 'options', sel: 0, back: 'pause' };
         else {
           save();

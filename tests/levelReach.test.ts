@@ -14,6 +14,10 @@ describe('level objects are within reach', () => {
   for (const c of game.cracked) c.broken = true;
   const footholds = findFootholds(world.grid, game);
 
+  it('finds places to stand', () => {
+    expect(footholds.length).toBeGreaterThan(0);
+  });
+
   /** True if a climber standing somewhere would get the interaction for this object. */
   const reachable = (test: (bx: number, by: number) => boolean) =>
     footholds.some((f) => {
