@@ -129,7 +129,11 @@ export type GameEvent =
   | { type: 'scare'; id: string; kind: ScareKind; x: number; y: number }
   | { type: 'whisper'; x: number; y: number }
   | { type: 'echoMove'; x: number; y: number }
-  | { type: 'kingDelivered'; item: ItemId };
+  | { type: 'kingDelivered'; item: ItemId }
+  /** Tried to put down a burden. */
+  | { type: 'notYet' }
+  /** A cutscene starts; (x, y) is its anchor, the trigger's floor cell. */
+  | { type: 'cutscene'; id: string; x: number; y: number };
 
 export interface Interaction {
   label: string;
@@ -196,6 +200,8 @@ export class Game implements PlayerWorld, StoryHost {
   flags = new Set<string>();
   npcs: NpcInstance[] = [];
   lifts: LiftStation[] = [];
+  /** Cutscene triggers (remake spec 5.4); each fires once (flag `scene:<id>`). */
+  sceneTriggers: { id: string; x: number; y: number; w: number; h: number; ax: number; ay: number }[] = [];
   scares: ScareInstance[] = [];
   /** Options can turn scares off. */
   scaresEnabled = true;
@@ -240,6 +246,11 @@ export class Game implements PlayerWorld, StoryHost {
       if (s.entry.object === 'note') this.notes.push({ id: String(props.id), tx: s.tx, ty: s.ty });
       if (s.entry.object === 'plate') this.plates.push({ id: `${s.tx},${s.ty}`, tx: s.tx, ty: s.ty, link: String(props.link), need: Number(props.need ?? 3), pressed: false });
       if (s.entry.object === 'altar') this.altar = { tx: s.tx, ty: s.ty, placed: [], crownTaken: false };
+      if (s.entry.object === 'scene') {
+        const w = Number(props.w ?? 4) * TILE;
+        const h = Number(props.h ?? 5) * TILE;
+        this.sceneTriggers.push({ id: String(props.id), x: s.tx * TILE + TILE / 2 - w / 2, y: (s.ty + 1) * TILE - h, w, h, ax: s.tx * TILE, ay: this.floorBelow(s.tx, s.ty) });
+      }
       if (s.entry.object === 'ring') this.rings.push({ x: s.tx * TILE + TILE / 2, y: s.ty * TILE + TILE / 2 });
       if (s.entry.object === 'npc') {
         const feet = this.floorBelow(s.tx, s.ty);
@@ -626,7 +637,7 @@ export class Game implements PlayerWorld, StoryHost {
         const relic = this.carried.find((c) => ITEMS[c.id].kind === 'relic');
         const cx0 = ax + TILE * 1.5;
         if (relic) return { label: `Place ${ITEMS[relic.id].name}`, x: cx0, y: ay - 6, run: () => this.placeRelic(relic) };
-        if (a.placed.length >= 3 && !a.crownTaken) return { label: 'Lift the crown', x: cx0, y: ay - 6, run: () => this.liftCrown() };
+        if (a.placed.length >= 3 && !a.crownTaken) return { label: 'Kneel beside her', x: cx0, y: ay - 6, run: () => this.events.push({ type: 'cutscene', id: 'summit', x: a.tx * TILE, y: (a.ty + 1) * TILE }) };
         if (!a.crownTaken) {
           const missing = 3 - a.placed.length;
           return { label: `The altar waits for ${missing} more relic${missing === 1 ? '' : 's'}`, x: cx0, y: ay - 6, run: () => undefined };
@@ -726,12 +737,12 @@ export class Game implements PlayerWorld, StoryHost {
     this.events.push({ type: 'relic', item: relic.id, x: this.altar.tx * TILE + 4, y: this.altar.ty * TILE });
   }
 
-  private liftCrown(): void {
-    if (!this.altar) return;
-    this.altar.crownTaken = true;
-    this.carried.push({ uid: this.nextUid++, id: 'crown' });
+  /** The climb ends (remake spec 2.4): letting go takes The Words out of the pack; either way the crown is lifted. */
+  endWith(ending: 'letGo' | 'holdOn'): void {
+    if (ending === 'letGo') this.carried = this.carried.filter((c) => c.id !== 'words');
+    this.flags.add(`ending:${ending}`);
+    if (this.altar) this.altar.crownTaken = true;
     this.updateLoadout();
-    this.events.push({ type: 'crown', x: this.altar.tx * TILE + 4, y: this.altar.ty * TILE });
   }
 
   // ---------- story: conditions, effects, gold, lifts, NPC behaviour, scares ----------
@@ -797,7 +808,7 @@ export class Game implements PlayerWorld, StoryHost {
     const st = this.lifts.find((l) => l.key === stationKey);
     const next = st && this.liftNext(st);
     const item = this.carried[carriedIndex];
-    if (!st || !next || !item) return false;
+    if (!st || !next || !item || ITEMS[item.id].kind === 'burden') return false;
     this.carried.splice(carriedIndex, 1);
     if (!this.payGold(LIFT_PRICE)) {
       this.carried.splice(carriedIndex, 0, item);
@@ -866,6 +877,15 @@ export class Game implements PlayerWorld, StoryHost {
         }
       }
     }
+    if (p.state === 'ground') {
+      const b = p.body;
+      for (const s of this.sceneTriggers) {
+        if (this.flags.has(`scene:${s.id}`)) continue;
+        if (!(b.x < s.x + s.w && s.x < b.x + b.w && b.y < s.y + s.h && s.y < b.y + b.h)) continue;
+        this.flags.add(`scene:${s.id}`);
+        this.events.push({ type: 'cutscene', id: s.id, x: s.ax, y: s.ay });
+      }
+    }
     if (this.scaresEnabled) {
       const b = p.body;
       for (const s of this.scares) {
@@ -904,6 +924,10 @@ export class Game implements PlayerWorld, StoryHost {
     if (p.state !== 'ground') return false;
     const c = this.carried[index];
     if (!c) return false;
+    if (ITEMS[c.id].kind === 'burden') {
+      this.events.push({ type: 'notYet' });
+      return false;
+    }
     this.carried.splice(index, 1);
     this.selectNewest();
     const x = Math.round(p.body.x + p.body.w / 2 - ITEM_BOX / 2);

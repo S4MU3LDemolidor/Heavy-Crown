@@ -127,7 +127,7 @@ describe('bells', () => {
 });
 
 describe('the altar and the crown', () => {
-  it('takes relics one at a time and gives up the crown when all three are placed', () => {
+  it('takes relics one at a time and starts the summit scene when all three are placed', () => {
     const g = objWorld();
     place(g, 55 * 8, 33 * 8);
     run(g, {}, 1);
@@ -141,9 +141,10 @@ describe('the altar and the crown', () => {
     expect(g.interaction()?.label).toBe('The altar waits for 1 more relic');
     carry(g, 'seal');
     g.interact();
-    expect(g.interaction()?.label).toBe('Lift the crown');
+    // remake: the full altar starts the summit scene; the crown is lifted in the ending
+    expect(g.interaction()?.label).toBe('Kneel beside her');
     g.interact();
-    expect(g.events.map((e) => e.type)).toContain('crown');
-    expect(g.has('crown')).toBe(true);
+    expect(g.events.map((e) => e.type)).toContain('cutscene');
+    expect(g.has('crown')).toBe(false);
   });
 });
