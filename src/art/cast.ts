@@ -1,0 +1,170 @@
+import { PixelBuffer } from './buffer';
+import { hex, type RGBA } from './color';
+import { parseGrid } from './grid';
+import type { NpcArt } from './npcs';
+
+/**
+ * The remake's cast in the world (remake spec 3.3), hand-pixeled at the 1.5x scale: facing right, feet on the
+ * bottom row, two idle frames each, with a selective outline. Generated from the scratch drawing script; the
+ * grids are the source.
+ */
+const OUTLINE = hex('#120d24');
+
+const pal = (p: Record<string, string>): Record<string, RGBA> => Object.fromEntries(Object.entries(p).map(([k, v]) => [k, hex(v)]));
+
+function sprite(frames: string[][], p: Record<string, RGBA>): NpcArt {
+  const bufs = frames.map((rows) => {
+    const g = parseGrid(rows, p);
+    const pad = new PixelBuffer(g.w + 2, g.h + 2);
+    pad.blit(g, 1, 1);
+    pad.selout(OUTLINE, 0.6);
+    return pad;
+  });
+  return { frames: bufs, w: bufs[0].w, h: bufs[0].h };
+}
+
+const CROW_PAL = pal({ k: '#14121f', K: '#252238', b: '#36325a', B: '#5a5490', e: '#f2c84b', y: '#3b3644', Y: '#77708a', f: '#8a6a3a' });
+const CROW: string[][] = [
+  [
+    '.............k....',
+    '...........kkB....',
+    '..........bBBBB...',
+    '.........KbbBeBB..',
+    '......BBBKbbBBByYY',
+    '...bbbBBBkKbbbByy.',
+    '..KbbbBBBBkKKbb...',
+    '.KKbBBBBBBBkkK....',
+    '.kKKbKKbBBBBBB....',
+    '.kKKKbbKbbbbbb....',
+    '.kKkKKKbKKbbb.....',
+    'k.KkkKKKKKKK......',
+    'kK.k..kkk.........',
+    '.K....f.f.........',
+    '.....ff.ff........',
+  ],
+  [
+    '..................',
+    '.............k....',
+    '...........kkB....',
+    '..........bBBBB...',
+    '......BBBKbbBeBB..',
+    '...bbbBBBKbbBBByYY',
+    '..KbbbBBBkKbbbByy.',
+    '.KKbBBBBBBBKKbb...',
+    '.kKKbKKbBBBkkK....',
+    '.kKKKbbKbbbbbb....',
+    '.kKkKKKbKKbbb.....',
+    'k.KkkKKKKKKK......',
+    'kK.k..kkk.........',
+    '.K....f.f.........',
+    '.....ff.ff........',
+  ],
+];
+
+const OSKAR_PAL = pal({ a: '#2a1c1e', b: '#4a3028', c: '#6e4a34', d: '#94683e', s: '#7a4a44', t: '#b47a62', u: '#dca88a', v: '#f2cfae', w: '#9a9aa8', W: '#e2e2ea', m: '#3a2a22', n: '#6b4f37', N: '#9c7b52', g: '#8a6a2a', G: '#d8a84a', r: '#7a2a34', R: '#b84a48', q: '#2e4a5a', Q: '#5a8aa0', k: '#120c1c', o: '#3a3a48' });
+const OSKAR: string[][] = [
+  [
+    '..................................',
+    '..............ggg.................',
+    '.............gWkWg.....ggG........',
+    '.............gWkkg.....gGG........',
+    '.............gWWWg......N.........',
+    '..............ggg......N..........',
+    '...n........GGGGGGG....N..........',
+    '...n........ggGGGGG...N...........',
+    '...nNNNN.....QQQQQQQ..N...........',
+    '...n.........qQQQQQQ.N............',
+    '...n.........qqQQQQQ..............',
+    '...n..QQQQ..RRRRRRRRR.............',
+    '...n.ooooooorRRRRRRRR.............',
+    '...nQQQQQQQQrrrRRRRRR.............',
+    '...nqQQQQQQQ......................',
+    '...nqQQQQQQQ......g...............',
+    '...n.qQQQQQ......g................',
+    '...g..qqqQ......g.................',
+    '....ggNNNNNNNNNgNN................',
+    '....nnggNNNNNNgNNN................',
+    '....nnnNggNNggNNNN................',
+    '....nmnnmNggNNmNNN................',
+    '....nnnnNNgNggNNNN................',
+    '....mnnnngNNNNggNN................',
+    '....mnnngnnNNNNNgg....uvvvvv......',
+    '....mmngnnnnnnNNNnggduwvwwwvv.....',
+    '......g....ccdddddddgwuvvvvwv.....',
+    '..........cccdddddddtwuvvvkvvv....',
+    '.........bccccddddddttuuvvvvvvu...',
+    '.........bccccdddddddtuWWWWWvuut..',
+    '........bbcccccddddddsnWWWWWW.tt..',
+    '........bbbccccddddddwnWWWWWWW....',
+    '........bbbcccccdddddwnWWWWWWW....',
+    '........abbbcccccddddwwnWWWWWW....',
+    '........abbbbccccccdddwnWWWWW.....',
+    '........aabbbccccccccddnwwWW......',
+    '.........abbbbbccccccccuv.........',
+    '.........aabbbbbccccccctu.........',
+    '..........aabbbbbbcccccc..........',
+    '...........aaabbbbbbbbb...........',
+    '.............aaabbbbbb............',
+    '...............bb...bb............',
+    '..............abb..abb............',
+    '.............mmmm.mmmm............',
+    '.............mmmm.mmmm............',
+    '.............mmmmm.mmmmm..........',
+  ],
+  [
+    '..................................',
+    '...............ggg................',
+    '..............gWkWg.....ggG.......',
+    '..............gWkkg.....gGG.......',
+    '..............gWWWg......N........',
+    '...............ggg......N.........',
+    '....n........GGGGGGG....N.........',
+    '....n........ggGGGGG...N..........',
+    '....nNNNN.....QQQQQQQ..N..........',
+    '....n.........qQQQQQQ.N...........',
+    '....n.........qqQQQQQ.............',
+    '....n..QQQQ..RRRRRRRRR............',
+    '....n.ooooooorRRRRRRRR............',
+    '....nQQQQQQQQrrrRRRRRR............',
+    '....nqQQQQQQQ.....................',
+    '....nqQQQQQQQ......g..............',
+    '....n.qQQQQQ......g...............',
+    '....g..qqqQ......g................',
+    '.....ggNNNNNNNNNgNN...............',
+    '.....nnggNNNNNNgNNN...............',
+    '.....nnnNggNNggNNNN...............',
+    '.....nmnnmNggNNmNNN...............',
+    '.....nnnnNNgNggNNNN...............',
+    '.....mnnnngNNNNggNN...............',
+    '.....mnnngnnNNNNNgg...uvvvvv......',
+    '.....mmngnnnnnnNNNngguwvwwwvv.....',
+    '.......g...ccddddddddguvvvvwv.....',
+    '..........cccdddddddtwuvvvkvvv....',
+    '.........bccccddddddttuuvvvvvvu...',
+    '.........bccccdddddddtuWWWWWvuut..',
+    '........bbcccccddddddsnWWWWWW.tt..',
+    '........bbbccccddddddwnWWWWWWW....',
+    '........bbbcccccdddddwnWWWWWWW....',
+    '........abbbcccccddddwwnWWWWWW....',
+    '........abbbbccccccdddwnWWWWW.....',
+    '........aabbbccccccccddnwwWW......',
+    '.........abbbbbccccccccuv.........',
+    '.........aabbbbbccccccctu.........',
+    '..........aabbbbbbcccccc..........',
+    '...........aaabbbbbbbbb...........',
+    '.............aaabbbbbb............',
+    '...............bb...bb............',
+    '..............abb..abb............',
+    '.............mmmm.mmmm............',
+    '.............mmmm.mmmm............',
+    '.............mmmmm.mmmmm..........',
+  ],
+];
+
+let cache: Record<string, NpcArt> | null = null;
+
+/** The cast sprites drawn so far, by sprite key. */
+export function castSprites(): Record<string, NpcArt> {
+  if (!cache) cache = { crow: sprite(CROW, CROW_PAL), oskar: sprite(OSKAR, OSKAR_PAL) };
+  return cache;
+}

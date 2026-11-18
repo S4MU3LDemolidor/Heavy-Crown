@@ -7,6 +7,7 @@ import type { Game } from '../game/game';
 import { Tile } from '../game/tiles';
 import { TILE, VIEW_H } from '../game/tuning';
 import { liftSprite, npcSprites, scareSprites } from '../art/npcs';
+import { props, type Prop } from '../art/props';
 import { toCanvas } from './canvas';
 import type { Actor } from '../game/cutscene';
 
@@ -55,8 +56,26 @@ export class ObjectRenderer {
     return this.items[id];
   }
 
-  /** Behind the climber: ladders, hooks, notes, gates. */
+  private readonly props: Record<string, { prop: Prop; r: HTMLCanvasElement[] }> = Object.fromEntries(
+    Object.entries(props()).map(([k, p]) => [k, { prop: p, r: p.frames.map((f) => toCanvas(f)) }]),
+  );
+
+  /** Story props placed as `deco` legend entries, standing on the floor of their cell. */
+  private drawDecos(ctx: CanvasRenderingContext2D, game: Game, camY: number, t: number): void {
+    for (const s of game.world.spawns) {
+      if (s.entry.kind !== 'deco') continue;
+      const d = this.props[s.entry.deco];
+      if (!d) continue;
+      const y = (s.ty + 1) * TILE - d.prop.h + 1 - camY;
+      if (y > VIEW_H || y + d.prop.h < 0) continue;
+      const rate = s.entry.deco === 'fire' ? 7 : 40;
+      ctx.drawImage(d.r[Math.floor((t + s.tx * 13) / rate) % d.r.length], Math.round(s.tx * TILE + TILE / 2 - d.prop.w / 2), y);
+    }
+  }
+
+  /** Behind the climber: story props, ladders, hooks, notes, gates. */
   drawBack(ctx: CanvasRenderingContext2D, game: Game, camY: number, t: number): void {
+    this.drawDecos(ctx, game, camY, t);
     const grid = game.world.grid;
     const ty0 = Math.floor(camY / TILE);
     const ty1 = Math.floor((camY + VIEW_H) / TILE);
@@ -311,6 +330,13 @@ export class ObjectRenderer {
       if (r) out.push({ x: it.body.x + 4, y: it.body.y + 2, r, color: it.id === 'lantern' ? '#ffd890' : it.id === 'ruby' ? '#ff6070' : '#ffe8a0' });
     }
     for (const n of game.notes) out.push({ x: n.tx * TILE + 4, y: n.ty * TILE + 3, r: 12, color: '#fff0c8', k: 0.5 });
+    for (const s of game.world.spawns) {
+      if (s.entry.kind !== 'deco') continue;
+      const l = this.props[s.entry.deco]?.prop.light;
+      if (!l) continue;
+      const flicker = s.entry.deco === 'fire' ? Math.sin(game.stats.frames * 0.23 + s.tx) * 4 + Math.sin(game.stats.frames * 0.61) * 2 : 0;
+      out.push({ x: s.tx * TILE + TILE / 2 + l.dx, y: (s.ty + 1) * TILE + l.dy, r: l.r + flicker, color: l.color });
+    }
     const a = game.altar;
     if (a) {
       if (a.placed.length) out.push({ x: a.tx * TILE + 4, y: a.ty * TILE, r: 30 + a.placed.length * 10, color: '#ffe8a0' });

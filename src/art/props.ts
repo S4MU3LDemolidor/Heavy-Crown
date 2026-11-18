@@ -1,0 +1,258 @@
+import { PixelBuffer } from './buffer';
+import { hex, type RGBA } from './color';
+import { parseGrid } from './grid';
+
+/**
+ * Props for the story's places (remake spec 2): a campfire for the fire scenes, a cottage and a lamppost for the
+ * village. Feet on the bottom row; a few frames each; an optional light (radius, colour, offset from the feet).
+ * Generated from the scratch drawing script; the grids are the source.
+ */
+export interface Prop {
+  frames: PixelBuffer[];
+  w: number;
+  h: number;
+  light?: { r: number; color: string; dx: number; dy: number };
+}
+
+const PAL: Record<string, RGBA> = Object.fromEntries(Object.entries({ k: '#120c1c', m: '#2e1f1a', n: '#5a3c28', N: '#8a6038', r: '#c0402e', o: '#f08a2a', y: '#ffd060', Y: '#fff2b0', s: '#3a3a4e', S: '#5a5a72', T: '#8a8aa4', w: '#5a4a3a', W: '#8a7454', L: '#ffd890', g: '#2a3a2a', G: '#4a5a3a', a: '#1e1a2a', c: '#6a6a82' } as Record<string, string>).map(([k, v]) => [k, hex(v)]));
+const OUTLINE = hex('#120d24');
+
+function prop(frames: string[][], light?: Prop['light']): Prop {
+  const bufs = frames.map((rows) => {
+    const g = parseGrid(rows, PAL);
+    const pad = new PixelBuffer(g.w + 2, g.h + 2);
+    pad.blit(g, 1, 1);
+    pad.selout(OUTLINE, 0.6);
+    return pad;
+  });
+  return { frames: bufs, w: bufs[0].w, h: bufs[0].h, light };
+}
+
+let cache: Record<string, Prop> | null = null;
+
+export function props(): Record<string, Prop> {
+  cache ??= {
+  fire: prop(
+    [
+      [
+        '..................',
+        '..................',
+        '..................',
+        '..................',
+        '.........r........',
+        '........ror.......',
+        '.......royor......',
+        '......royYyor.....',
+        '.....royYYyoor....',
+        '.....roYYYyor.....',
+        '...nn.roooor.NNN..',
+        '...mmnnn.NNNNnnn..',
+        '.....mmmnnnnn.....',
+        '..NNNnnnmmmnnn....',
+        'sSnnn......mmmnnSs',
+        'ss............msss',
+      ],
+      [
+        '..................',
+        '..................',
+        '..................',
+        '..................',
+        '........r.........',
+        '.......ror.r......',
+        '......royoror.....',
+        '.....roYyyyor.....',
+        '.....royYYyor.....',
+        '.....royYYoor.....',
+        '...nn.roooor.NNN..',
+        '...mmnnn.NNNNnnn..',
+        '.....mmmnnnnn.....',
+        '..NNNnnnmmmnnn....',
+        'sSnnn......mmmnnSs',
+        'ss............msss',
+      ],
+      [
+        '..................',
+        '..................',
+        '..................',
+        '..................',
+        '..........r.......',
+        '......r..ror......',
+        '......rorYyor.....',
+        '.....royYYyor.....',
+        '.....royYyyor.....',
+        '.....roYYYyor.....',
+        '...nn.roooor.NNN..',
+        '...mmnnn.NNNNnnn..',
+        '.....mmmnnnnn.....',
+        '..NNNnnnmmmnnn....',
+        'sSnnn......mmmnnSs',
+        'ss............msss',
+      ],
+    ],
+    { r: 74, color: '#ffb060', dx: 0, dy: -8 },
+  ),
+  cottage: prop(
+    [
+      [
+        '....................sssSST.....c..............',
+        '...................ssssSSST.....c.............',
+        '..................sssssSSSST..SSSSS...........',
+        '.................ssssssSSSSST.SSSSS...........',
+        '................sssssssSSSSSSTSSSSS...........',
+        '...............ssssssssSSSSSSSSSSSS...........',
+        '..............sssssssssSSSSSSSSSSSS...........',
+        '.............ssssssssssSSSSSSSsSSSS...........',
+        '............sssssssssssSSSSSSSsSSSS...........',
+        '...........ssssssssssssSSSSSSSsSSSS...........',
+        '..........sssssssssssssSSSSSSSsSSSST..........',
+        '.........ssssssssssssssSSSSSSSssSSSST.........',
+        '........sssssssssssssssSSSSSSSssSSSSST........',
+        '.......ssssssssssssssssSSSSSSSSSSSSSSST.......',
+        '......sssssssssssssssssSSSSSSSSSSSSSSSST......',
+        '.....ssssssssssssssssssSSSSSSSSSSSSSSSSST.....',
+        '....sssssssssssssssssssSSSSSSSSSSSSSSSSSST....',
+        '...ssssssssssssssssssssSSSSSSSSSSSSSSSSSSST...',
+        '..sssssssssssssssssssssSSSSSSSSSSSSSSSSSSSST..',
+        '.ssssssssssssssssssssssSSSSSSSSSSSSSSSSSSSSST.',
+        'sssssssssssssssssssssssSSSSSSSSSSSSSSSSSSSSSST',
+        '....wwwwWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW....',
+        '....wwwwWWnWWWWWWWnWWWWWWWnWWWWWWWnWWWWWWW....',
+        '....wwwwWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW....',
+        '....wwwwWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW....',
+        '....wwwwwWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW....',
+        '....wwnwwWWWWWnWWWWWWWnWWWyyyymyyyyyWWnWWW....',
+        '....wwwwwWWWWWWWWWWWWWWWWWyyyymyyyyyWWWWWW....',
+        '....wwwwwwWWnnnnnnnnWWWWWWoyyymyyyyyWWWWWW....',
+        '....wwwwwwwWnnnnnnnnWWWWWWmmmmmmmmmmWWWWWW....',
+        '....wwwwwwnWnnnnnnnnWWWWWWoyyymyyyyyWWWWWW....',
+        '....wwwwwwwwnnnnnnnnWWWWWWooyymyyyyyWWWWWW....',
+        '....wwwwwwwwnnnnnnnnWWWWWWoooymyyyyyWWWWWW....',
+        '....wwwwwwwwmnnnnnnnWWWWWWoooomyyyyyWWWWWW....',
+        '....wwnwwwwwmnnnnnnnWWnWWWWWWWnWWWWWWWnWWW....',
+        '....wwwwwwwwmnnnnnynWWWWWWWWWWWWWWWWWWWWWW....',
+        '....wwwwwwwwmnnnnnnnWWWWWWWWWWWWWWWWWWWWWW....',
+        '....wwwwwwwwmnnnnnnnWWWWWWWWWWWWWWWWWWWWWW....',
+        '....wwwwwwnwmmnnnnnnWWWWWWnWWWWWWWnWWWWWWW....',
+        '....wwwwwwwwmmnnnnnnwwWWWWWWWWWWWWWWWWWWWW....',
+        '....wwwwwwwwmmmnnnnnwwwwWWWWWWWWWWWWWWWWWw....',
+        '....wwwwwwwwmmmnnnnnwwwwwwWWWWWWWWWWWWWWww....',
+      ],
+      [
+        '....................sssSST......c.............',
+        '...................ssssSSST......c............',
+        '..................sssssSSSST..SSSSS...........',
+        '.................ssssssSSSSST.SSSSS...........',
+        '................sssssssSSSSSSTSSSSS...........',
+        '...............ssssssssSSSSSSSSSSSS...........',
+        '..............sssssssssSSSSSSSSSSSS...........',
+        '.............ssssssssssSSSSSSSsSSSS...........',
+        '............sssssssssssSSSSSSSsSSSS...........',
+        '...........ssssssssssssSSSSSSSsSSSS...........',
+        '..........sssssssssssssSSSSSSSsSSSST..........',
+        '.........ssssssssssssssSSSSSSSssSSSST.........',
+        '........sssssssssssssssSSSSSSSssSSSSST........',
+        '.......ssssssssssssssssSSSSSSSSSSSSSSST.......',
+        '......sssssssssssssssssSSSSSSSSSSSSSSSST......',
+        '.....ssssssssssssssssssSSSSSSSSSSSSSSSSST.....',
+        '....sssssssssssssssssssSSSSSSSSSSSSSSSSSST....',
+        '...ssssssssssssssssssssSSSSSSSSSSSSSSSSSSST...',
+        '..sssssssssssssssssssssSSSSSSSSSSSSSSSSSSSST..',
+        '.ssssssssssssssssssssssSSSSSSSSSSSSSSSSSSSSST.',
+        'sssssssssssssssssssssssSSSSSSSSSSSSSSSSSSSSSST',
+        '....wwwwWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW....',
+        '....wwwwWWnWWWWWWWnWWWWWWWnWWWWWWWnWWWWWWW....',
+        '....wwwwWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW....',
+        '....wwwwWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW....',
+        '....wwwwwWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW....',
+        '....wwnwwWWWWWnWWWWWWWnWWWyyyymyyyyyWWnWWW....',
+        '....wwwwwWWWWWWWWWWWWWWWWWyyyymyyyyyWWWWWW....',
+        '....wwwwwwWWnnnnnnnnWWWWWWoyyymyyyyyWWWWWW....',
+        '....wwwwwwwWnnnnnnnnWWWWWWmmmmmmmmmmWWWWWW....',
+        '....wwwwwwnWnnnnnnnnWWWWWWoyyymyyyyyWWWWWW....',
+        '....wwwwwwwwnnnnnnnnWWWWWWooyymyyyyyWWWWWW....',
+        '....wwwwwwwwnnnnnnnnWWWWWWoooymyyyyyWWWWWW....',
+        '....wwwwwwwwmnnnnnnnWWWWWWoooomyyyyyWWWWWW....',
+        '....wwnwwwwwmnnnnnnnWWnWWWWWWWnWWWWWWWnWWW....',
+        '....wwwwwwwwmnnnnnynWWWWWWWWWWWWWWWWWWWWWW....',
+        '....wwwwwwwwmnnnnnnnWWWWWWWWWWWWWWWWWWWWWW....',
+        '....wwwwwwwwmnnnnnnnWWWWWWWWWWWWWWWWWWWWWW....',
+        '....wwwwwwnwmmnnnnnnWWWWWWnWWWWWWWnWWWWWWW....',
+        '....wwwwwwwwmmnnnnnnwwWWWWWWWWWWWWWWWWWWWW....',
+        '....wwwwwwwwmmmnnnnnwwwwWWWWWWWWWWWWWWWWWw....',
+        '....wwwwwwwwmmmnnnnnwwwwwwWWWWWWWWWWWWWWww....',
+      ],
+    ],
+    { r: 46, color: '#ffc070', dx: 8, dy: -12 },
+  ),
+  lamp: prop(
+    [
+      [
+        '.........',
+        '.aaaaaaa.',
+        '..sLLLs..',
+        '..sLYLs..',
+        '..sLLLs..',
+        '.aaaaaaa.',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '..aassa..',
+      ],
+      [
+        '.........',
+        '.aaaaaaa.',
+        '..sLLLs..',
+        '..sLLLs..',
+        '..sLLLs..',
+        '.aaaaaaa.',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '....as...',
+        '..aassa..',
+      ],
+    ],
+    { r: 52, color: '#ffd890', dx: 0, dy: -26 },
+  ),
+  };
+  return cache;
+}

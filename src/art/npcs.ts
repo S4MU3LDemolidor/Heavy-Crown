@@ -1,6 +1,7 @@
 import { PixelBuffer } from './buffer';
 import { hex, type RGBA } from './color';
 import { parseGrid } from './grid';
+import { castSprites } from './cast';
 
 /** NPC and scare sprites (full-game spec sections 5–6). Facing right; feet on the bottom row. */
 
@@ -101,6 +102,8 @@ export function npcSprites(): Record<string, NpcArt> {
       const bufs = frames.map(outlined);
       npcCache[k] = { frames: bufs, w: bufs[0].w, h: bufs[0].h };
     }
+    // the remake's redrawn cast replaces the MVP sprites of the same name
+    Object.assign(npcCache, castSprites());
   }
   return npcCache;
 }
