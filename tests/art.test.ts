@@ -3,6 +3,7 @@ import { PixelBuffer } from '../src/art/buffer';
 import { BODY_FRAMES, buildClimberSheet, FEET_X, FEET_Y, FRAME_H, FRAME_W, OUTLINE, OUTLINE_MIX, PALETTE } from '../src/art/climber';
 import { alpha, hex, mix, red, toHex } from '../src/art/color';
 import { parseGrid } from '../src/art/grid';
+import { PORTRAIT_SIZE, portrait } from '../src/art/portraits';
 import { bayer, fbm, hash2, rng, valueNoise } from '../src/art/noise';
 
 describe('color', () => {
@@ -159,5 +160,24 @@ describe("Wren's sheet", () => {
     expect(nx).toBeGreaterThan(FEET_X - 8);
     expect(nx).toBeLessThan(FEET_X + 8);
     expect(ny).toBeLessThan(FEET_Y - 15);
+  });
+});
+
+describe('portraits', () => {
+  it("draws Wren's neutral face at 64×64, mostly opaque, in a small palette", () => {
+    const p = portrait('wren', 'neutral');
+    expect([p.w, p.h]).toEqual([PORTRAIT_SIZE, PORTRAIT_SIZE]);
+    let opaque = 0;
+    const colours = new Set<number>();
+    for (let y = 0; y < p.h; y++)
+      for (let x = 0; x < p.w; x++) {
+        const c = p.get(x, y);
+        if (c >>> 24) {
+          opaque++;
+          colours.add(c);
+        }
+      }
+    expect(opaque / (p.w * p.h)).toBeGreaterThan(0.45);
+    expect(colours.size).toBeLessThanOrEqual(40);
   });
 });
