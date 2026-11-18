@@ -79,3 +79,20 @@ describe('parseGrid', () => {
     expect(() => parseGrid(['aa', 'a'], { a: 1 })).toThrow(/expected 2/);
   });
 });
+
+describe('selective outline', () => {
+  it('outlines each region in a dark tone of its own colour', () => {
+    const b = new PixelBuffer(6, 3);
+    b.set(1, 1, hex('#d6453b')); // red
+    b.set(4, 1, hex('#3f4f8a')); // blue
+    b.selout(hex('#120d24'), 0.6);
+    const left = b.get(0, 1);
+    const right = b.get(5, 1);
+    expect(left).not.toBe(0);
+    expect(right).not.toBe(0);
+    expect(left).not.toBe(right);
+    expect(left & 255).toBeGreaterThan((left >>> 16) & 255); // the red's outline stays reddish
+    expect((right >>> 16) & 255).toBeGreaterThan(right & 255); // the blue's outline stays bluish
+    expect(b.get(1, 1)).toBe(hex('#d6453b')); // the figure itself is untouched
+  });
+});
