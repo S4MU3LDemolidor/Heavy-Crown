@@ -3,7 +3,7 @@ import { PixelBuffer } from '../src/art/buffer';
 import { BODY_FRAMES, buildClimberSheet, FEET_X, FEET_Y, FRAME_H, FRAME_W, OUTLINE, OUTLINE_MIX, PALETTE } from '../src/art/climber';
 import { alpha, hex, mix, red, toHex } from '../src/art/color';
 import { parseGrid } from '../src/art/grid';
-import { PORTRAIT_SIZE, portrait } from '../src/art/portraits';
+import { PORTRAIT_SIZE, portrait, WREN_FACES } from '../src/art/portraits';
 import { bayer, fbm, hash2, rng, valueNoise } from '../src/art/noise';
 
 describe('color', () => {
@@ -203,5 +203,20 @@ describe('portraits', () => {
       }
     expect(opaque / (p.w * p.h)).toBeGreaterThan(0.45);
     expect(colours.size).toBeLessThanOrEqual(40);
+  });
+
+  it("changes only the face between Wren's expressions", () => {
+    const n = portrait('wren', 'neutral');
+    for (const face of WREN_FACES) {
+      const p = portrait('wren', face);
+      let changed = 0;
+      for (let y = 0; y < p.h; y++)
+        for (let x = 0; x < p.w; x++) {
+          if (p.get(x, y) === n.get(x, y)) continue;
+          changed++;
+          expect(x >= 28 && x <= 52 && y >= 22 && y <= 44, `${face} changes (${x}, ${y})`).toBe(true);
+        }
+      if (face !== 'neutral') expect(changed, face).toBeGreaterThan(6);
+    }
   });
 });
