@@ -7,6 +7,52 @@ import type { Scene } from '../game/cutscene';
  * Faces: Wren neutral/sad/angry/surprised/determined/crying; Maren tired/loving/crying/smile.
  */
 export const SCENES: Record<string, Scene> = {
+  /** Level 1, the village: the bell rings after ten years. */
+  intro: {
+    id: 'intro',
+    steps: [
+      { wait: 40 },
+      { say: 'The bell. After ten years, the bell.', who: 'wren', face: 'surprised' },
+      { say: '"When you hear the summit bell, I made it. I am coming home."', who: 'wren', face: 'sad' },
+      { say: 'She is not coming home. She is up there, and something is wrong.', who: 'wren', face: 'determined' },
+      { say: 'Her old pack, her old map somewhere up in the tower. And the thing I said to her. I am taking all of it.', who: 'wren', face: 'sad' },
+      { move: 'wren', to: 6 },
+    ],
+  },
+  /** Level 3's campfire, the end of Act I: the Crow asks why Wren is really climbing. */
+  fire1: {
+    id: 'fire1',
+    steps: [
+      { move: 'wren', to: 3 },
+      { pose: 'wren', frame: 'sit' },
+      { wait: 40 },
+      { spawn: 'crow', sprite: 'crow', at: [9, 0], dir: -1 },
+      { say: 'Warm. The first warm thing in this whole tower.', who: 'wren', face: 'neutral' },
+      { say: 'I have watched a hundred climbers sit at this fire. Most of them talk. It is the height. It loosens things.', who: 'crow', face: 'smug' },
+      { say: 'So. Why are you really climbing?', who: 'crow', face: 'serious' },
+      {
+        choose: [
+          { label: 'To bring back the dawn.', goto: 'dawn' },
+          { label: 'To bring her home.', goto: 'home' },
+        ],
+      },
+      { label: 'dawn' },
+      { say: 'To bring back the dawn. Like she wanted.', who: 'wren', face: 'determined' },
+      { say: 'Mm. The dawn. Very noble. You said it the way people say "fine" when they are not.', who: 'crow', face: 'smug' },
+      { goto: 'end' },
+      { label: 'home' },
+      { say: 'To bring her home. Whatever is left of her.', who: 'wren', face: 'sad' },
+      { say: 'Home. And when she asks why you came after ten years, what will you tell her?', who: 'crow', face: 'serious' },
+      { say: '...', who: 'wren', face: 'sad' },
+      { label: 'end' },
+      { say: 'Sleep. It gets steeper from here, and the water below the bells is cold.', who: 'crow', face: 'sad' },
+      { fade: 'out' },
+      { pose: 'wren', frame: '' },
+      { remove: 'crow' },
+      { set: 'act1done' },
+      { fade: 'in' },
+    ],
+  },
   summit: {
     id: 'summit',
     steps: [

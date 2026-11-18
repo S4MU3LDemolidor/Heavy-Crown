@@ -56,6 +56,11 @@ describe('level objects are within reach', () => {
     expect(standNear(l.x, l.y, 16)).toBe(true);
   });
 
+  it.each(game.sceneTriggers.map((s) => [s.id, s] as const))('scene %s can be started', (_id, s) => {
+    const ok = reachable((bx, by) => bx < s.x + s.w && s.x < bx + TUNING.bodyW && by < s.y + s.h && s.y < by + TUNING.bodyH);
+    expect(ok).toBe(true);
+  });
+
   it.each(game.scares.map((s) => [s.id, s] as const))('scare %s can be sprung', (_id, s) => {
     const ok = reachable((bx, by) => bx < s.x + s.w && s.x < bx + TUNING.bodyW && by < s.y + s.h && s.y < by + TUNING.bodyH);
     expect(ok).toBe(true);

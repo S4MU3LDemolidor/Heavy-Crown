@@ -7,8 +7,13 @@ export const INTRO_LINES = [
   'Tonight, the bell rang.',
 ]
 
-/** Maren's notes (remake: 15, written act by act in plans 4–8). */
-export const NOTES: Record<string, { title: string; text: string }> = {};
+/** Maren's notes, one per level (remake spec 2.5): what she carried, what she left, the night she left. */
+export const NOTES: Record<string, { title: string; text: string }> = {
+  // Act I
+  note1: { title: "Maren's note", text: 'First night in the tower. I can still see our window from here, the lamp you leave on for me. I packed everything I own. The tower laughed at me on the first ledge.' },
+  note2: { title: "Maren's note", text: 'The rope was the cleverest thing I carried and the thing I nearly left behind. I keep reaching into the pack for things that are not there. Your drawing. Your little shoes. I should not have brought those.' },
+  note3: { title: "Maren's note", text: 'The hoarder sold me claws and asked what I would never put down. I said nothing. I meant you. I meant leaving you.' },
+};
 
 /** The fifteen levels' names (remake spec section 4.2). */
 export const LEVEL_NAMES: Record<number, string> = {

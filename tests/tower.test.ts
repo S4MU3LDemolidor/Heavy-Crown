@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { LEVELS, LEVELS_PER_ACT } from '../src/content/levels';
 import { NPCS } from '../src/content/npcs';
+import { SCENES } from '../src/content/cutscenes';
+import type { ItemId } from '../src/content/items';
+import { SCREEN_ROWS } from '../src/game/tuning';
 import { LEVEL_NAMES, NOTES } from '../src/content/story';
 import { Game } from '../src/game/game';
 import { buildWorld } from '../src/game/level';
@@ -39,5 +42,21 @@ describe('the tower', () => {
         expect(game.npcs.some((n) => n.id === def.id && n.scene === c.at), `${def.id} at ${c.at}`).toBe(true);
       }
     }
+  });
+
+  /** Level id at a tile row. */
+  const levelAt = (ty: number) => world.levels[world.bandLevel[Math.floor(ty / SCREEN_ROWS)]].id;
+  const itemLevels = (id: ItemId) => world.spawns.filter((s) => s.entry.kind === 'item' && s.entry.item === id).map((s) => levelAt(s.ty));
+
+  it('has a written scene for every scene trigger', () => {
+    for (const t of game.sceneTriggers) expect(SCENES[t.id], t.id).toBeDefined();
+  });
+
+  it("puts Act I's things where the story needs them", () => {
+    expect(itemLevels('map')).toEqual([1]);
+    expect(itemLevels('rope')).toEqual([2]);
+    expect(itemLevels('iron_key')).toEqual([2]);
+    expect(itemLevels('claws')).toEqual([3]);
+    expect(game.sceneTriggers.map((t) => t.id)).toEqual(expect.arrayContaining(['intro', 'fire1']));
   });
 });

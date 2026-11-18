@@ -13,7 +13,41 @@ export const NPCS: Record<string, NpcDef> = {
     sprite: 'crow',
     voice: { pitch: 620, wave: 'square', rate: 2 },
     behavior: 'crow',
-    conversations: [],
+    conversations: [
+      {
+        id: 'crow-1-first',
+        at: 'l1',
+        once: true,
+        nodes: [
+          { id: 'a', text: 'Caw. Another one. A pack on the back and a face like a funeral.', face: 'smug', next: 'b' },
+          { id: 'b', who: 'wren', text: 'Have you seen a woman climb through here? A red scarf, like mine.', next: 'c' },
+          { id: 'c', text: 'Ten years ago. She talked to me. Nobody up here talks. Well. Nobody nice.', face: 'serious', next: 'd' },
+          {
+            id: 'd',
+            text: 'She carried too much. They all do. What is that one you keep touching, at the bottom of the pack?',
+            face: 'smug',
+            choices: [
+              { label: 'Nothing.', next: 'e' },
+              { label: 'Something I said.', next: 'f' },
+            ],
+          },
+          { id: 'e', text: 'Nothing weighs a stone, apparently. Climb on, then. I will be around. It is my one talent.', face: 'smug' },
+          { id: 'f', text: 'Ah. Words. The heaviest kind, and the only kind you cannot put down by trying.', face: 'sad' },
+        ],
+      },
+      { id: 'crow-1', at: 'l1', nodes: [{ id: 'a', text: 'Up. Everyone goes up. The question is what they carry when they get there.', face: 'serious' }] },
+      {
+        id: 'crow-2-first',
+        at: 'l2',
+        once: true,
+        nodes: [
+          { id: 'a', text: 'You hung a rope to fetch a key to open a door. Very climber of you.', face: 'smug', next: 'b' },
+          { id: 'b', who: 'wren', text: 'Why are you following me?', face: 'angry', next: 'c' },
+          { id: 'c', text: 'Following? I live here. You are the one tramping through my house in muddy boots.', face: 'smug' },
+        ],
+      },
+      { id: 'crow-2', at: 'l2', nodes: [{ id: 'a', text: 'The tower does not care what you meant to carry. Only what you carry.', face: 'serious' }] },
+    ],
   },
   oskar: {
     id: 'oskar',
@@ -21,7 +55,32 @@ export const NPCS: Record<string, NpcDef> = {
     sprite: 'oskar',
     voice: { pitch: 150, wave: 'sawtooth', rate: 2 },
     behavior: 'static',
-    conversations: [],
+    conversations: [
+      {
+        id: 'oskar-3-sale',
+        at: 'l3',
+        if: { notFlag: 'oskarClaws' },
+        nodes: [
+          { id: 'a', text: 'Do not touch the pile. Every piece is precious. Every piece is MINE.', face: 'suspicious', next: 'b' },
+          { id: 'b', who: 'wren', text: 'I only want to get past.', next: 'c' },
+          {
+            id: 'c',
+            text: 'Past? Up, you mean. Then you want claws. Iron claws for the hands; the ivy is nothing with claws. Forty gold. I do not make change.',
+            face: 'greedy',
+            choices: [
+              { label: 'Buy the Claws (40 gold)', if: { gold: 40 }, do: [{ pay: 40 }, { give: 'claws' }, { set: 'oskarClaws' }], next: 'd' },
+              { label: 'Why carry all of this?', next: 'e' },
+              { label: 'Not now.' },
+            ],
+          },
+          { id: 'd', text: 'Yes. Yes! The pile grows. Go on, spider. Climb.', face: 'greedy' },
+          { id: 'e', text: 'Because if I put it down, someone will take it. And then what would I be? A man with nothing. A light man.', face: 'scared', next: 'f' },
+          { id: 'f', who: 'wren', text: 'Would that be so bad?', face: 'sad', next: 'g' },
+          { id: 'g', text: 'Says the one with something heavy at the bottom of that pack. I can smell it. Guilt smells like wet paper.', face: 'suspicious' },
+        ],
+      },
+      { id: 'oskar-3-after', at: 'l3', nodes: [{ id: 'a', text: 'Go away. The pile is resting.', face: 'suspicious' }] },
+    ],
   },
   nell: {
     id: 'nell',

@@ -17,7 +17,7 @@ let failed = 0;
 let count = 0;
 
 /** Checks reachability within the levels around `id` (one below, one above). */
-function check(label: string, id: number, from: Cell, to: { id: number; cell: Cell }, opts: { stones?: number; moves?: Move[]; cloak?: boolean; open?: Open }, expect: boolean): void {
+function check(label: string, id: number, from: Cell, to: { id: number; cell: Cell }, opts: { stones?: number; moves?: Move[]; cloak?: boolean; open?: Open; ropes?: boolean }, expect: boolean): void {
   count++;
   const levels: LevelDef[] = [byId(id - 1), byId(id), byId(id + 1)].filter(Boolean);
   const li = levels.indexOf(byId(id));
@@ -33,6 +33,8 @@ function check(label: string, id: number, from: Cell, to: { id: number; cell: Ce
       const open = opts.open ?? 'all';
       for (const g of game.gates) g.open = open === 'all' || (open === 'keys' && !g.link && !g.flag);
       for (const w of game.cracked) w.broken = open !== 'none';
+      // every rope hook has a rope hung on it, when asked
+      if (opts.ropes) for (const h of game.hooks) h.ropeUid = -1;
       return { ...reachOpts(level, game, opts.moves, opts.cloak), ...(opts.stones !== undefined ? { stones: opts.stones } : {}) };
     },
   );
@@ -54,8 +56,13 @@ for (const l of LEVELS) {
   }
 }
 
-// the hand-made rules (remake: written with each act, plans 4–8)
-const RULES: { id: number; run: () => void }[] = [];
+// the hand-made rules (remake: written with each act)
+const RULES: { id: number; run: () => void }[] = [
+  // Act I
+  { id: 2, run: () => check('level 2: the iron gate cannot be bypassed', 2, byId(2).entry!, { id: 2, cell: byId(2).exit! }, { open: 'none' }, false) },
+  { id: 2, run: () => check('level 2: the key pit cannot be climbed out of without the rope', 2, [1, 40, 28], { id: 2, cell: [1, 33, 13] }, { open: 'none' }, false) },
+  { id: 2, run: () => check('level 2: with the rope hung, the key pit can be climbed out of', 2, [1, 40, 28], { id: 2, cell: [1, 33, 13] }, { open: 'none', ropes: true }, true) },
+];
 for (const r of RULES) if (!only.size || only.has(r.id)) r.run();
 
 console.log(failed ? `\n${failed} of ${count} checks failed` : `\nall ${count} checks passed`);
