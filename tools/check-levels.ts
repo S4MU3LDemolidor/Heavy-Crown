@@ -71,6 +71,9 @@ const RULES: { id: number; run: () => void }[] = [
   // Act IV
   { id: 11, run: () => check('level 11: the cracked wall cannot be bypassed', 11, byId(11).entry!, { id: 11, cell: byId(11).exit! }, { open: 'none', moves: ['claws', 'hook'] }, false) },
   { id: 12, run: () => check('level 12: the bone door guards the Seal', 12, byId(12).entry!, { id: 12, cell: [0, 6, 25] }, { open: 'none', moves: ['claws', 'hook'] }, false) },
+  // Act V: the summit is reached carrying one relic at a time
+  { id: 15, run: () => check('level 15: one relic, Crampons and Fur Cloak (8 st) reach the summit', 15, byId(15).entry!, { id: 15, cell: byId(15).exit! }, { stones: 8, cloak: true }, true) },
+  { id: 15, run: () => check('level 15: two relics (12 st) cannot', 15, byId(15).entry!, { id: 15, cell: byId(15).exit! }, { stones: 12, cloak: true }, false) },
 ];
 for (const r of RULES) if (!only.size || only.has(r.id)) r.run();
 

@@ -96,4 +96,22 @@ describe('the tower', () => {
   it('never gives a legend letter that the map already uses for a tile or object', () => {
     for (const l of LEVELS) for (const k of Object.keys(l.legend)) expect('# .~iH@=C%&*'.includes(k), `level ${l.id} legend '${k}'`).toBe(false);
   });
+
+  it("puts Act V's things where the story needs them, and the altar at the summit", () => {
+    expect(itemLevels('crampons')).toEqual([13]);
+    expect(itemLevels('fur_cloak')).toEqual([13]);
+    expect(game.altar).not.toBeNull();
+    expect(levelAt(game.altar!.ty)).toBe(15);
+    expect(game.npcs.some((n) => n.id === 'maren' && levelAt(Math.floor(n.y / 8) - 1) === 15)).toBe(true);
+    expect(game.npcs.some((n) => n.id === 'king' && levelAt(Math.floor(n.y / 8) - 1) === 14)).toBe(true);
+    expect(game.lifts.map((l) => [levelAt(Math.floor(l.y / 8) - 1), l.order])).toEqual(expect.arrayContaining([[15, 5]]));
+    expect(game.sceneTriggers.map((t) => t.id)).toEqual(expect.arrayContaining(['memory1', 'memory2']));
+    expect(game.scares.map((s) => s.id)).toContain('kingeyes');
+  });
+
+  it('has fifteen levels in five acts, every relic placed once, and fifteen notes', () => {
+    expect(LEVELS).toHaveLength(15);
+    for (const r of ['orb', 'scepter', 'seal'] as ItemId[]) expect(itemLevels(r)).toHaveLength(1);
+    expect(Object.keys(NOTES)).toHaveLength(15);
+  });
 });

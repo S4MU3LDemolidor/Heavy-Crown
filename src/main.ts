@@ -151,13 +151,15 @@ function portraitFor(who: string, face: string, sprite?: string): HTMLCanvasElem
     }
     return c;
   }
-  if (who === 'narrator') return null;
+  if (who === 'narrator' || who === 'young' || who === 'child') return null;
   return scene.objects.portrait(sprite ?? game.npcDefs[who]?.sprite ?? who);
 }
 
 function speakerName(who: string): string {
   if (who === 'wren') return 'Wren';
   if (who === 'narrator') return '';
+  if (who === 'young') return 'Maren, ten years ago';
+  if (who === 'child') return 'Wren, eight';
   return game.npcDefs[who]?.name ?? (who === 'maren' ? 'Maren' : who);
 }
 

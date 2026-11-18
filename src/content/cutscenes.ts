@@ -120,6 +120,41 @@ export const SCENES: Record<string, Scene> = {
       { fade: 'in' },
     ],
   },
+  /** Level 13: the first memory, the night before Maren left (a promise). */
+  memory1: {
+    id: 'memory1',
+    steps: [
+      { spawn: 'young', sprite: 'maren-young', at: [5, 0], dir: -1, ghost: true },
+      { spawn: 'child', sprite: 'wren-child', at: [2, 0], dir: 1, ghost: true },
+      { wait: 30 },
+      { say: 'Is the tower really taller than the sky?', who: 'child' },
+      { say: 'Taller. And at the very top there is a bell. When you hear it, I made it, and I am coming home.', who: 'young' },
+      { say: 'Promise?', who: 'child' },
+      { say: 'Promise. Leave the lamp in the window for me.', who: 'young' },
+      { remove: 'young' },
+      { remove: 'child' },
+      { wait: 20 },
+      { say: 'I remember that. I remember the promise. I forgot I ever believed her.', who: 'wren', face: 'sad' },
+    ],
+  },
+  /** Level 14: the second memory, the night Maren left (the words). */
+  memory2: {
+    id: 'memory2',
+    steps: [
+      { spawn: 'young', sprite: 'maren-young', at: [5, 0], dir: -1, ghost: true },
+      { spawn: 'child', sprite: 'wren-child', at: [2, 0], dir: 1, ghost: true },
+      { wait: 30 },
+      { say: 'I have to go tonight, love. If I wait for the spring, I will never go.', who: 'young' },
+      { say: "Then don't go. Stay. Everybody else's mother stays.", who: 'child' },
+      { say: 'Someone has to bring the sun back. I will come home. I promise.', who: 'young' },
+      { say: "If you go, don't ever come back!", who: 'child' },
+      { move: 'child', to: -8 },
+      { remove: 'child' },
+      { wait: 40 },
+      { remove: 'young' },
+      { say: 'I slammed the door. I watched her go from the window, and I did not wave.', who: 'wren', face: 'crying' },
+    ],
+  },
   summit: {
     id: 'summit',
     steps: [

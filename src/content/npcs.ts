@@ -216,6 +216,54 @@ export const NPCS: Record<string, NpcDef> = {
     sprite: 'king',
     voice: { pitch: 110, wave: 'triangle', rate: 1 },
     behavior: 'king',
-    conversations: [],
+    conversations: [
+      {
+        id: 'king-14-first',
+        at: 'l14',
+        once: true,
+        nodes: [
+          { id: 'a', text: 'Climber. Climber! You carry them. I can feel them through the ice. The relics.', face: 'pleading', next: 'b' },
+          { id: 'b', who: 'wren', text: 'Who are you?', next: 'c' },
+          { id: 'c', text: 'I was a king. I climbed with all three at once, because a king does not make three trips. The ice took me at the knees, and then it took the rest.', face: 'bitter', next: 'd' },
+          {
+            id: 'd',
+            text: 'Give me one. Let me carry one up for you. I will set it on the altar. I swear it on my crown, which I no longer have.',
+            face: 'pleading',
+            choices: [
+              { label: 'Carry one up for me.', if: { relic: true }, do: [{ favour: 'king' }] },
+              { label: 'Did a woman come by? A red scarf.', next: 'e' },
+              { label: 'No.', next: 'f' },
+            ],
+          },
+          { id: 'e', text: 'The mapmaker. Ten years ago, weeping. She gave me nothing. She should have given me something. We are the same, she and I. We hold on until it freezes us.', face: 'bitter' },
+          { id: 'f', text: 'No. Of course not. Nobody trusts a frozen king.', face: 'bitter' },
+        ],
+      },
+      {
+        id: 'king-14',
+        at: 'l14',
+        nodes: [
+          {
+            id: 'a',
+            text: 'One at a time. I did not. Look at me.',
+            face: 'bitter',
+            choices: [
+              { label: 'Carry one up for me.', if: { relic: true }, do: [{ favour: 'king' }] },
+              { label: 'Goodbye.' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  maren: {
+    id: 'maren',
+    name: 'Maren',
+    sprite: 'maren',
+    voice: { pitch: 280, wave: 'sine', rate: 1 },
+    behavior: 'static',
+    conversations: [
+      { id: 'maren-15', at: 'l15', nodes: [{ id: 'a', text: '...the altar... three... it wants all three, love. I could not carry them. I could not put anything down.', face: 'tired' }] },
+    ],
   },
 };

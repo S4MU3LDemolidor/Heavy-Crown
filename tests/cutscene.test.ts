@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { SCENES } from '../src/content/cutscenes';
 import { CutsceneRunner, type Scene } from '../src/game/cutscene';
 
 /** A runner for `steps`, anchored at (100, 200), with Wren standing at x = 100. */
@@ -98,5 +99,34 @@ describe('cutscenes', () => {
     const r = run([{ pose: 'wren', frame: 'sit' }]);
     r.update();
     expect(r.actors.get('wren')?.pose).toBe('sit');
+  });
+});
+
+
+describe('the written scenes', () => {
+  /** Plays a scene to its end, taking choice `pick` at every choice; returns the runner. */
+  function play(id: string, pick = 0) {
+    const r = new CutsceneRunner(SCENES[id], { x: 200, y: 200 }, new Set(), { x: 200, y: 200, facing: 1 });
+    for (let i = 0; i < 20000 && !r.done; i++) {
+      r.update();
+      if (r.line) r.advance();
+      else if (r.choices) r.choose(Math.min(pick, r.choices.length - 1));
+    }
+    return r;
+  }
+
+  it.each(Object.keys(SCENES))('%s plays to its end, and every label it jumps to exists', (id) => {
+    const steps = SCENES[id].steps;
+    const labels = new Set(steps.flatMap((s) => ('label' in s ? [s.label] : [])));
+    for (const s of steps) {
+      if ('goto' in s) expect(labels.has(s.goto), `${id} -> ${s.goto}`).toBe(true);
+      if ('choose' in s) for (const c of s.choose) if (c.goto) expect(labels.has(c.goto), `${id} -> ${c.goto}`).toBe(true);
+    }
+    expect(play(id).done).toBe(true);
+  });
+
+  it('the summit ends in letting go or holding on', () => {
+    expect(play('summit', 0).ending).toBe('letGo');
+    expect(play('summit', 1).ending).toBe('holdOn');
   });
 });

@@ -25,6 +25,10 @@ export const NOTES: Record<string, { title: string; text: string }> = {
   note10: { title: "Maren's note", text: 'I am leaving my lantern here, burning, so I can find my way back down. I do not think I am coming back down. Leave it burning anyway.' },
   note11: { title: "Maren's note", text: 'The faceless ones whisper. Not their words. Mine. Everything I should have said to you, and the one thing you said to me.' },
   note12: { title: "Maren's note", text: 'Sent the crow down to you today. It argued. It is the only one up here who argues. Look after my child, I told it. It said it would, and that it would complain the whole time.' },
+  // Act V
+  note13: { title: "Maren's note", text: 'Ice. My boots slide as if they want to go home. I keep seeing you at the door that night, your fists so small, and I keep walking.' },
+  note14: { title: "Maren's note", text: 'A king in the ice begged me for the relics. I gave him nothing. I have been so afraid of losing what I carry that I have lost everything else.' },
+  note15: { title: "Maren's last note", text: 'The altar wants the heaviest thing I carry. I know what it is. It is you, and the door I walked out of. I cannot put it down. I asked the ringer to call you. I am sorry, my love. Climb lighter than I did.' },
 };
 
 /** What the Hollow Ones whisper when they reach Wren (remake spec 2.3): Wren's own words, and the tower's. */
