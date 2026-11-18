@@ -5,7 +5,7 @@ import { Audio } from './engine/audio';
 import { Input } from './engine/input';
 import { startLoop } from './engine/loop';
 import { Renderer } from './engine/renderer';
-import { clearSave, readSave, writeSave } from './engine/save';
+import { addEnding, clearSave, readEndings, readSave, writeSave } from './engine/save';
 import { Camera } from './game/camera';
 import { Game } from './game/game';
 import { buildWorld } from './game/level';
@@ -18,7 +18,12 @@ import { dimScreen, drawTextCentered, UI } from './ui/draw';
 import { drawDialogue, drawPicker } from './ui/dialogue';
 import { DialogueRunner } from './game/story';
 import { ITEMS } from './content/items';
-import { ENDING_LINES, INTRO_LINES, LEVEL_NAMES } from './content/story';
+import { ENDINGS, INTRO_LINES, LEVEL_NAMES } from './content/story';
+import { SCENES } from './content/cutscenes';
+import { CutsceneRunner, type Ending } from './game/cutscene';
+import { hasPortrait, portrait as paintPortrait } from './art/portraits';
+import { toCanvas } from './render/canvas';
+import type { BodyFrame } from './art/climber';
 import { THEMES } from './content/themes';
 
 const params = new URLSearchParams(location.search);
@@ -56,14 +61,17 @@ type Mode =
   | { kind: 'play' }
   | { kind: 'inventory'; sel: number; message: string | null; messageT: number }
   | { kind: 'note'; id: string }
-  | { kind: 'pause'; sel: number }
+  | { kind: 'pause'; sel: number; scene?: SceneMode }
   | { kind: 'options'; sel: number; back: 'pause' | 'title' }
   | { kind: 'map'; act: number }
   | { kind: 'journal'; page: number }
-  | { kind: 'ending'; t: number; stats: EndStats; baseY: number }
+  | { kind: 'ending'; t: number; stats: EndStats; baseY: number; ending: Ending }
   | { kind: 'credits'; t: number }
   | { kind: 'talk'; runner: DialogueRunner; typed: number; sel: number }
-  | { kind: 'pick'; what: 'lift' | 'favour'; station: string; sel: number };
+  | { kind: 'pick'; what: 'lift' | 'favour'; station: string; sel: number }
+  | SceneMode;
+/** A cutscene playing (remake spec 5.4). */
+type SceneMode = { kind: 'scene'; runner: CutsceneRunner; typed: number; sel: number };
 let mode: Mode = GREYBOX || MOVES || params.has('play') ? { kind: 'play' } : { kind: 'title', sel: 0 };
 let meterT = 0;
 let saveT = 0;
@@ -102,6 +110,7 @@ function startNewClimb(): void {
   clearSave();
   game = new Game(world);
   game.scaresEnabled = options.scares;
+  game.give('words');
   camera.snapTo(game.player.centerY);
   scene.warm(camera.band);
   mode = { kind: 'intro', t: 0 };
@@ -117,15 +126,81 @@ function continueClimb(): void {
   mode = { kind: 'play' };
 }
 
-function startEnding(): void {
+function startEnding(ending: Ending): void {
   audio.chargeStop();
+  addEnding(ending);
   mode = {
     kind: 'ending',
+    ending,
     t: 0,
     baseY: camera.y,
     stats: { time: formatTime(game.stats.frames), jumps: game.stats.jumps, falls: game.stats.falls, biggestFall: game.stats.biggestFall, gold: game.goldDelivered() },
   };
   clearSave();
+}
+
+/** Portraits by speaker and face, painted once; speakers without a portrait show their sprite. */
+const portraits = new Map<string, HTMLCanvasElement>();
+function portraitFor(who: string, face: string, sprite?: string): HTMLCanvasElement | null {
+  if (hasPortrait(who)) {
+    const key = `${who}:${face}`;
+    let c = portraits.get(key);
+    if (!c) {
+      c = toCanvas(paintPortrait(who, face));
+      portraits.set(key, c);
+    }
+    return c;
+  }
+  if (who === 'narrator') return null;
+  return scene.objects.portrait(sprite ?? game.npcDefs[who]?.sprite ?? who);
+}
+
+function speakerName(who: string): string {
+  if (who === 'wren') return 'Wren';
+  if (who === 'narrator') return '';
+  return game.npcDefs[who]?.name ?? (who === 'maren' ? 'Maren' : who);
+}
+
+/** Held poses a scene can ask of Wren, by name (or any body frame). */
+const POSE_FRAMES: Record<string, BodyFrame> = { sit: 'stumble2', kneel: 'pickup', fallen: 'stumble0', climb: 'ladder0' };
+
+/** Starts cutscene `id` anchored at (x, y); unknown ids are ignored. */
+function startScene(id: string, x: number, y: number): void {
+  const s = SCENES[id];
+  if (!s) return;
+  const p = game.player;
+  p.vx = 0;
+  p.events = [];
+  audio.chargeStop();
+  mode = { kind: 'scene', runner: new CutsceneRunner(s, { x, y }, game.flags, { x: p.body.x + p.body.w / 2, y: p.feetY, facing: p.facing }), typed: 0, sel: 0 };
+  scene.actors = mode.runner.actors;
+}
+
+/** Puts the climber where the scene's Wren is, in her pose. */
+function syncWren(r: CutsceneRunner): void {
+  const a = r.actors.get('wren');
+  const p = game.player;
+  if (a) {
+    p.body.x = Math.round(a.x - p.body.w / 2);
+    p.facing = a.facing;
+    p.vx = a.to !== undefined ? a.facing * 1.2 : 0;
+    scene.poseOverride = a.pose ? (POSE_FRAMES[a.pose] ?? (a.pose as BodyFrame)) : null;
+  }
+  scene.sceneFade = r.fade;
+}
+
+function endScene(r: CutsceneRunner): void {
+  scene.poseOverride = null;
+  scene.actors = null;
+  scene.sceneFade = 0;
+  game.player.vx = 0;
+  if (r.ending) {
+    game.endWith(r.ending);
+    startEnding(r.ending);
+    return;
+  }
+  mode = { kind: 'play' };
+  save();
 }
 
 /** Shows a level's title card the first time the climber enters it. */
@@ -204,6 +279,7 @@ function playSounds(): void {
 function step(left: boolean, right: boolean, jump: boolean, up = false, down = false, hook = false): void {
   game.step({ left, right, jump, up, down, hook });
   playSounds();
+  for (const e of game.events) if (e.type === 'cutscene') startScene(e.id, e.x, e.y);
   for (const e of game.events) if (e.type === 'weight') meterT = 180;
   for (const e of game.player.events) if (e.type === 'land') save();
   const before = camera.band;
@@ -283,7 +359,7 @@ function update(): void {
           scene.onStep(game);
           playSounds();
           save();
-        } else toast = { text: 'You can only put things down on solid ground.', t: 120 };
+        } else toast = { text: game.events.some((e) => e.type === 'notYet') ? 'Not yet.' : 'You can only put things down on solid ground.', t: 120 };
       }
       if (input.pressed('interact')) {
         const it = game.interaction();
@@ -304,10 +380,7 @@ function update(): void {
             }
           }
           for (const e of game.events) if (e.type === 'weight') meterT = 180;
-          if (game.events.some((e) => e.type === 'crown')) {
-            startEnding();
-            return;
-          }
+          for (const e of game.events) if (e.type === 'cutscene') startScene(e.id, e.x, e.y);
           save();
           if (mode.kind !== 'play') return;
         }
@@ -328,7 +401,7 @@ function update(): void {
           playSounds();
           save();
         } else {
-          mode.message = 'You can only put things down on solid ground.';
+          mode.message = game.events.some((e) => e.type === 'notYet') ? 'Not yet.' : 'You can only put things down on solid ground.';
           mode.messageT = 120;
         }
       }
@@ -382,6 +455,39 @@ function update(): void {
       if (back && mode.kind === 'talk') mode = { kind: 'play' };
       break;
     }
+    case 'scene': {
+      const r = mode.runner;
+      if (input.pressed('pause')) {
+        mode = { kind: 'pause', sel: 0, scene: mode };
+        break;
+      }
+      r.update();
+      if (r.line) {
+        const n = r.line.text.length;
+        mode.typed = Math.min(n, mode.typed + 1.4);
+        if (ok) {
+          if (mode.typed < n) mode.typed = n;
+          else {
+            r.advance();
+            mode.typed = 0;
+          }
+        }
+      } else if (r.choices) {
+        mode.sel = nav(mode.sel, r.choices.length);
+        if (ok) {
+          r.choose(mode.sel);
+          mode.sel = 0;
+          mode.typed = 0;
+        }
+      }
+      syncWren(r);
+      scene.update(game.player);
+      scene.effects.update();
+      camera.update(game.player.centerY);
+      audio.tick();
+      if (r.done) endScene(r);
+      break;
+    }
     case 'pick': {
       const options = pickOptions(mode.what);
       const n = options.length;
@@ -403,14 +509,22 @@ function update(): void {
     case 'pause': {
       const items = pauseItems();
       if (input.pressed('pause')) {
-        mode = { kind: 'play' };
+        mode = mode.scene ?? { kind: 'play' };
         break;
       }
       mode.sel = nav(mode.sel, items.length);
       if (ok) {
         audio.ui();
         const pick = items[mode.sel];
-        if (pick === 'Resume') mode = { kind: 'play' };
+        if (pick === 'Resume') mode = mode.scene ?? { kind: 'play' };
+        else if (pick === 'Skip scene' && mode.scene) {
+          const s = mode.scene;
+          s.runner.skip();
+          s.typed = 0;
+          s.sel = 0;
+          if (s.runner.done) endScene(s.runner);
+          else mode = s;
+        }
         else if (pick === 'Journal') mode = { kind: 'journal', page: Math.max(0, game.notesRead.size - 1) };
         else if (pick === 'Map') mode = { kind: 'map', act: Math.ceil(world.levels[world.bandLevel[camera.band]].id / LEVELS_PER_ACT) };
         else if (pick === 'Options') mode = { kind: 'options', sel: 0, back: 'pause' };
@@ -482,7 +596,7 @@ function update(): void {
 
 /** Indices of carried items a picker offers. */
 function pickOptions(what: 'lift' | 'favour'): number[] {
-  return game.carried.map((c, i) => [c, i] as const).filter(([c]) => what === 'lift' || ITEMS[c.id].kind === 'relic').map(([, i]) => i);
+  return game.carried.map((c, i) => [c, i] as const).filter(([c]) => (what === 'lift' ? ITEMS[c.id].kind !== 'burden' : ITEMS[c.id].kind === 'relic')).map(([, i]) => i);
 }
 
 function titleItems(): string[] {
@@ -490,6 +604,7 @@ function titleItems(): string[] {
 }
 
 function pauseItems(): string[] {
+  if (mode.kind === 'pause' && mode.scene) return ['Resume', 'Skip scene', 'Quit to title'];
   return ['Resume', 'Journal', ...(game.has('map') ? ['Map'] : []), 'Options', 'Quit to title'];
 }
 
@@ -511,7 +626,11 @@ function render(): void {
       ctx.fillRect(0, 0, 480, 270);
       drawLogo(ctx, 240, 64, uiT);
       drawTextCentered(ctx, 'A tower. A crown. Everything you carry.', 240, 100, UI.dim);
-      if (mode.kind === 'title') drawMenu(ctx, titleItems(), mode.sel, 240, 150, uiT);
+      if (mode.kind === 'title') {
+        drawMenu(ctx, titleItems(), mode.sel, 240, 150, uiT);
+        const seen = readEndings().filter((e): e is Ending => e in ENDINGS);
+        if (seen.length) drawTextCentered(ctx, `Endings seen: ${seen.map((e) => ENDINGS[e].title).join(' · ')}`, 240, 150 + titleItems().length * 14 + 12, UI.dim);
+      }
       else {
         dimScreen(ctx, 0.5);
         drawTextCentered(ctx, 'Start a new climb?', 240, 120, UI.ink);
@@ -564,7 +683,7 @@ function render(): void {
       drawJournal(ctx, [...game.notesRead], mode.page, `${input.label('left')}/${input.label('right')} turn   ${input.label('pause')} close`);
       break;
     case 'ending':
-      if (mode.t > 300) drawStoryLines(ctx, ENDING_LINES, mode.t - 300, 140, 0.2);
+      if (mode.t > 300) drawStoryLines(ctx, ENDINGS[mode.ending].lines, mode.t - 300, 140, 0.2);
       if (mode.t > 640) drawStats(ctx, mode.stats, (mode.t - 640) / 60, mode.t > 760 ? hint('jump', 'continue') : '');
       break;
     case 'credits':
@@ -573,12 +692,22 @@ function render(): void {
     case 'talk': {
       const view = mode.runner.view();
       if (view) {
-        const portrait = scene.objects.portrait(mode.runner.def.sprite);
+        const portrait = portraitFor(view.who, view.face, mode.runner.def.sprite);
         const typedOut = mode.typed >= view.text.length;
         const hint = !typedOut ? `${input.label('interact')} skip` : view.choices.length ? `${input.label('up')}/${input.label('down')} choose  ${input.label('interact')} select` : `${input.label('interact')} continue`;
-        drawDialogue(ctx, view, mode.typed, mode.sel, portrait, hint);
+        drawDialogue(ctx, view, mode.typed, mode.sel, portrait, view.who === 'wren' ? 'left' : 'right', hint);
       }
       if (toast) drawToast(ctx, toast.text, toast.t);
+      break;
+    }
+    case 'scene': {
+      const r = mode.runner;
+      if (r.line) {
+        const typedOut = mode.typed >= r.line.text.length;
+        drawDialogue(ctx, { name: speakerName(r.line.who), text: r.line.text, choices: [] }, mode.typed, 0, portraitFor(r.line.who, r.line.face), r.line.who === 'wren' ? 'left' : 'right', typedOut ? `${input.label('interact')} continue` : `${input.label('interact')} skip`);
+      } else if (r.choices) {
+        drawDialogue(ctx, { name: 'Wren', text: '', choices: r.choices.map((c) => ({ label: c.label, enabled: true })) }, 0, mode.sel, portraitFor('wren', 'neutral'), 'left', `${input.label('up')}/${input.label('down')} choose  ${input.label('interact')} select`);
+      }
       break;
     }
     case 'pick': {
@@ -653,22 +782,10 @@ if (import.meta.env.DEV) {
       render();
       return mode.kind;
     },
-    /** Puts the three relics on the altar and lifts the crown. */
-    finish() {
-      mode = { kind: 'play' };
-      const li = world.levels.findIndex((l) => l.id === world.levels[world.levels.length - 1].id);
-      const p = game.player;
-      p.body.x = 29 * 8;
-      p.body.y = (world.bandLevel.indexOf(li) * 34 + 7) * 8 - 18;
-      p.state = 'ground';
-      camera.snapTo(p.centerY);
-      for (const id of ['orb', 'scepter', 'seal']) game.carried.push({ uid: 7000 + game.carried.length, id: id as never });
-      game.updateLoadout();
-      for (let i = 0; i < 4; i++) {
-        game.interact();
-        scene.onStep(game);
-        if (game.events.some((e) => e.type === 'crown')) startEnding();
-      }
+    /** Ends the climb with an ending (default: letting go). */
+    finish(ending: Ending = 'letGo') {
+      game.endWith(ending);
+      startEnding(ending);
       render();
       return mode.kind;
     },

@@ -737,6 +737,13 @@ export class Game implements PlayerWorld, StoryHost {
     this.events.push({ type: 'relic', item: relic.id, x: this.altar.tx * TILE + 4, y: this.altar.ty * TILE });
   }
 
+  /** Puts an item straight into the pack (The Words at the start of a climb, debug tools). */
+  give(id: ItemId): void {
+    this.carried.push({ uid: this.nextUid++, id });
+    this.selected = this.carried.length - 1;
+    this.updateLoadout();
+  }
+
   /** The climb ends (remake spec 2.4): letting go takes The Words out of the pack; either way the crown is lifted. */
   endWith(ending: 'letGo' | 'holdOn'): void {
     if (ending === 'letGo') this.carried = this.carried.filter((c) => c.id !== 'words');

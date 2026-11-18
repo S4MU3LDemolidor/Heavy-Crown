@@ -32,3 +32,25 @@ export function clearSave(): void {
     /* storage unavailable */
   }
 }
+
+const ENDINGS_KEY = 'heavycrown.endings';
+
+/** The endings the player has seen, across climbs (remake spec 2.4). */
+export function readEndings(): string[] {
+  try {
+    const d = JSON.parse(localStorage.getItem(ENDINGS_KEY) ?? '[]');
+    return Array.isArray(d) ? d.filter((x) => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+export function addEnding(id: string): void {
+  try {
+    const seen = new Set(readEndings());
+    seen.add(id);
+    localStorage.setItem(ENDINGS_KEY, JSON.stringify([...seen]));
+  } catch {
+    /* storage unavailable */
+  }
+}

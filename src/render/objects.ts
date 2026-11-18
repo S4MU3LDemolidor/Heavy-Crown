@@ -8,6 +8,7 @@ import { Tile } from '../game/tiles';
 import { TILE, VIEW_H } from '../game/tuning';
 import { liftSprite, npcSprites, scareSprites } from '../art/npcs';
 import { toCanvas } from './canvas';
+import type { Actor } from '../game/cutscene';
 
 /** Draws the world's objects and items (spec sections 7–8). */
 export class ObjectRenderer {
@@ -243,9 +244,9 @@ export class ObjectRenderer {
   }
 
   /** NPCs (not the Echo, which the scene draws from the climber's own sprite). */
-  drawNpcs(ctx: CanvasRenderingContext2D, game: Game, camY: number, t: number): void {
+  drawNpcs(ctx: CanvasRenderingContext2D, game: Game, camY: number, t: number, hide?: ReadonlyMap<string, unknown> | null): void {
     for (const n of game.npcs) {
-      if (n.gone) continue;
+      if (n.gone || hide?.has(n.id)) continue;
       const def = game.npcDefs[n.id];
       if (!def || def.behavior === 'echo') continue;
       const art = this.npc[def.sprite];
@@ -261,6 +262,22 @@ export class ObjectRenderer {
       if (y > VIEW_H || y < -40) continue;
       ctx.drawImage(this.lift, st.x - 6, y);
       st.bucket.slice(0, 2).forEach((it, i) => ctx.drawImage(this.items[it.id], st.x - 8 + i * 5, y + 9));
+    }
+  }
+
+  /** A cutscene's actors (all but Wren, who is the climber): NPC sprites by key, memories pale and see-through. */
+  drawActors(ctx: CanvasRenderingContext2D, actors: ReadonlyMap<string, Actor>, camY: number, t: number): void {
+    for (const a of actors.values()) {
+      if (a.id === 'wren') continue;
+      const art = this.npc[a.sprite];
+      if (!art) continue;
+      const y = Math.round(a.y) - art.h + 1 - camY;
+      if (y > VIEW_H || y + art.h < 0) continue;
+      const frame = a.pose === 'still' ? 0 : (t + Math.round(a.x) * 7) % 90 < 45 ? 0 : 1;
+      ctx.save();
+      if (a.ghost) ctx.globalAlpha = 0.5 + Math.sin(t * 0.1) * 0.1;
+      ctx.drawImage((a.facing > 0 ? art.r : art.l)[Math.min(frame, art.r.length - 1)], Math.round(a.x - art.w / 2), y);
+      ctx.restore();
     }
   }
 
