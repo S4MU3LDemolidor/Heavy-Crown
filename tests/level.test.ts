@@ -9,7 +9,7 @@ function level(id: number, screens: string[][], legend: LevelDef['legend'] = {})
 
 describe('buildWorld', () => {
   it('stacks levels bottom-up and screens top-first within a level', () => {
-    const l1 = level(1, [put(blankScreen(), 1, 1, '#'), put(blankScreen(), 2, 2, '@')]);
+    const l1 = level(1, [put(blankScreen(), 1, 1, '#'), put(blankScreen(), 2, 5, '@')]);
     const l2 = level(2, [put(blankScreen(), 3, 3, '#')]);
     const w = buildWorld([l1, l2]);
     expect(w.screenCount).toBe(3);

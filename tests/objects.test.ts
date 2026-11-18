@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Game } from '../src/game/game';
 import { buildWorld, type LevelDef } from '../src/game/level';
 import type { PlayerInput } from '../src/game/player';
+import { TUNING } from '../src/game/tuning';
 import { blankScreen, put } from './helpers';
 
 /**
@@ -42,7 +43,7 @@ function carry(g: Game, ...ids: Parameters<Game['has']>[0][]) {
 }
 function place(g: Game, x: number, feetY: number) {
   g.player.body.x = x;
-  g.player.body.y = feetY - 18;
+  g.player.body.y = feetY - TUNING.bodyH;
   g.player.body.remY = 0;
 }
 
@@ -97,7 +98,7 @@ describe('pressure plates', () => {
 describe('cracked walls', () => {
   it('need a Pickaxe and break as one region', () => {
     const g = objWorld();
-    place(g, 50 * 8 - 11, 33 * 8);
+    place(g, 50 * 8 - TUNING.bodyW - 1, 33 * 8);
     run(g, {}, 1);
     expect(g.interaction()?.label).toBe('Cracked stone: needs a Pickaxe');
     carry(g, 'pickaxe');

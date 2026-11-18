@@ -6,7 +6,7 @@ import { makeBody, moveY, type Body } from './body';
 import type { World } from './level';
 import { Player, type LadderHit, type PlayerInput, type PlayerWorld } from './player';
 import { Tile } from './tiles';
-import { SCREEN_H, TILE } from './tuning';
+import { SCALE, SCREEN_H, TILE } from './tuning';
 
 /** Items lying in the world use an 8×8 box; x, y is its top-left. */
 export const ITEM_BOX = 8;
@@ -170,7 +170,7 @@ export interface SaveData {
 /** Bucket lift price in gold (spec 5.3). */
 export const LIFT_PRICE = 10;
 /** Reach for talking to NPCs and using lift stations. */
-const TALK_REACH = 16;
+const TALK_REACH = 24;
 
 const rectsOverlap = (ax: number, ay: number, aw: number, ah: number, bx: number, by: number, bw: number, bh: number) =>
   ax < bx + bw && bx < ax + aw && ay < by + bh && by < ay + ah;
@@ -406,7 +406,7 @@ export class Game implements PlayerWorld, StoryHost {
   windAt(_x: number, y: number): number {
     const dir = this.world.bandWind[Math.floor(y / SCREEN_H)] ?? 0;
     if (dir === 0 || this.gust().phase !== 'gust') return 0;
-    return 0.06 * dir;
+    return 0.06 * SCALE * dir;
   }
 
   ladderAt(x: number, y: number, w: number, h: number): LadderHit | null {

@@ -27,7 +27,8 @@ function untilLanded(p: Player, world: TileGrid): { top: number; events: PlayerE
   return { top, events };
 }
 
-/** 12×30 tile room. Floor top at y = 232, so a standing body has y = 214. Inner walls at x = 8 and x = 88. */
+/** 12×30 tile room. Floor top at y = 232, so a standing body has y = STAND. Inner walls at x = 8 and x = 88. */
+const STAND = 232 - TUNING.bodyH;
 function room(): TileGrid {
   return gridFrom([...Array.from({ length: 29 }, () => '#..........#'), '############']);
 }
@@ -35,7 +36,7 @@ function room(): TileGrid {
 describe('player: walking, charging, jumping', () => {
   it('walks at walk speed, slower when heavy', () => {
     const w = room();
-    const p = new Player(40, 214);
+    const p = new Player(40, STAND);
     step(p, w, { right: true });
     expect(p.vx).toBeCloseTo(TUNING.walkSpeed);
     expect(p.facing).toBe(1);
@@ -47,7 +48,7 @@ describe('player: walking, charging, jumping', () => {
 
   it('charges while jump is held and a full-charge jump rises maxJump pixels', () => {
     const w = room();
-    const p = new Player(40, 214);
+    const p = new Player(40, STAND);
     const startEvents = step(p, w, { jump: true });
     expect(startEvents).toContainEqual({ type: 'chargeStart' });
     step(p, w, { jump: true }, TUNING.chargeFrames);
@@ -59,39 +60,39 @@ describe('player: walking, charging, jumping', () => {
     expect(p.state).toBe('air');
 
     const { top } = untilLanded(p, w);
-    const rise = 214 - top;
+    const rise = STAND - top;
     expect(rise).toBeGreaterThanOrEqual(TUNING.maxJump - 1);
     expect(rise).toBeLessThanOrEqual(TUNING.maxJump + 1);
     expect(p.state).toBe('ground');
-    expect(p.body.y).toBe(214);
+    expect(p.body.y).toBe(STAND);
   });
 
   it('a tap jump rises minJump pixels', () => {
     const w = room();
-    const p = new Player(40, 214);
+    const p = new Player(40, STAND);
     step(p, w, { jump: true });
     step(p, w, {});
     const { top } = untilLanded(p, w);
-    const rise = 214 - top;
+    const rise = STAND - top;
     expect(rise).toBeGreaterThanOrEqual(TUNING.minJump - 1);
     expect(rise).toBeLessThanOrEqual(TUNING.minJump + 1);
   });
 
   it('weight shortens the jump (10 stones = half height)', () => {
     const w = room();
-    const p = new Player(40, 214);
+    const p = new Player(40, STAND);
     p.loadout.stones = 10;
     step(p, w, { jump: true }, 80);
     step(p, w, {});
     const { top } = untilLanded(p, w);
-    const rise = 214 - top;
+    const rise = STAND - top;
     expect(rise).toBeGreaterThanOrEqual(TUNING.maxJump * 0.5 - 1);
     expect(rise).toBeLessThanOrEqual(TUNING.maxJump * 0.5 + 1);
   });
 
   it('cannot walk while charging and jumps toward the arrow held at release', () => {
     const w = room();
-    const p = new Player(40, 214);
+    const p = new Player(40, STAND);
     step(p, w, { jump: true, right: true }, 20);
     expect(p.body.x).toBe(40);
     step(p, w, { right: true });
@@ -101,24 +102,26 @@ describe('player: walking, charging, jumping', () => {
 
   it('a jump with no arrow held goes straight up', () => {
     const w = room();
-    const p = new Player(40, 214);
+    const p = new Player(40, STAND);
     step(p, w, { jump: true }, 10);
     step(p, w, {});
     expect(p.vx).toBe(0);
   });
 });
 
-/** 12×10 room with a ceiling. Floor top at y = 72 (standing body y = 54); ceiling bottom at y = 8. */
+/** 12×10 room with a ceiling. Floor top at y = 72 (standing body y = LOW_STAND); ceiling bottom at y = 8. */
+const LOW_STAND = 72 - TUNING.bodyH;
 function lowRoom(): TileGrid {
   return gridFrom(['############', ...Array.from({ length: 8 }, () => '#..........#'), '############']);
 }
 
-/** 12×30 room with a ledge (cols 1–4, row 5). Standing on the ledge: body y = 22; on the floor: 214. */
+/** 12×42 room with a ledge (cols 1–4, row 5, top at y = 40) and the floor top at y = 328: a 288 px drop. */
+const LEDGE_STAND = 40 - TUNING.bodyH;
 function ledgeRoom(): TileGrid {
   return gridFrom([
     ...Array.from({ length: 5 }, () => '#..........#'),
     '#####......#',
-    ...Array.from({ length: 23 }, () => '#..........#'),
+    ...Array.from({ length: 35 }, () => '#..........#'),
     '############',
   ]);
 }
@@ -131,7 +134,7 @@ function walkOffLedge(p: Player, w: TileGrid): void {
 describe('player: walls, ceilings, falls', () => {
   it('bounces off walls at wallBounce times the speed', () => {
     const w = room();
-    const p = new Player(40, 214);
+    const p = new Player(40, STAND);
     step(p, w, { jump: true, right: true }, TUNING.chargeFrames + 1);
     step(p, w, { right: true });
     let bonked = false;
@@ -145,7 +148,7 @@ describe('player: walls, ceilings, falls', () => {
 
   it('a ceiling stops the rise and the player falls back down', () => {
     const w = lowRoom();
-    const p = new Player(40, 54);
+    const p = new Player(40, LOW_STAND);
     step(p, w, { jump: true }, TUNING.chargeFrames + 1);
     step(p, w, {});
     const { top, events } = untilLanded(p, w);
@@ -156,7 +159,7 @@ describe('player: walls, ceilings, falls', () => {
 
   it('walking off a ledge keeps walking speed', () => {
     const w = ledgeRoom();
-    const p = new Player(16, 22);
+    const p = new Player(16, LEDGE_STAND);
     walkOffLedge(p, w);
     expect(p.state).toBe('air');
     expect(p.vx).toBeCloseTo(TUNING.walkSpeed);
@@ -164,10 +167,10 @@ describe('player: walls, ceilings, falls', () => {
 
   it('a long fall stumbles for stumbleFrames and ignores input meanwhile', () => {
     const w = ledgeRoom();
-    const p = new Player(16, 22);
+    const p = new Player(16, LEDGE_STAND);
     walkOffLedge(p, w);
     const { events } = untilLanded(p, w);
-    expect(events.find((e) => e.type === 'land')).toEqual({ type: 'land', fall: 192, drop: 192, hard: true });
+    expect(events.find((e) => e.type === 'land')).toEqual({ type: 'land', fall: 288, drop: 288, hard: true });
     expect(p.state).toBe('stumble');
 
     const x = p.body.x;
@@ -180,7 +183,7 @@ describe('player: walls, ceilings, falls', () => {
 
   it('the Feather Charm prevents the stumble', () => {
     const w = ledgeRoom();
-    const p = new Player(16, 22);
+    const p = new Player(16, LEDGE_STAND);
     p.loadout.noStumble = true;
     walkOffLedge(p, w);
     const { events } = untilLanded(p, w);
@@ -190,7 +193,7 @@ describe('player: walls, ceilings, falls', () => {
 
   it('a normal jump landing does not stumble', () => {
     const w = room();
-    const p = new Player(40, 214);
+    const p = new Player(40, STAND);
     step(p, w, { jump: true }, TUNING.chargeFrames + 1);
     step(p, w, {});
     const { events } = untilLanded(p, w);

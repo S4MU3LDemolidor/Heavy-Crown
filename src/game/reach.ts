@@ -1,7 +1,10 @@
 import { Player, type PlayerInput, type PlayerWorld } from './player';
 import type { CollisionWorld, TileGrid } from './tiles';
-import { TILE, TUNING } from './tuning';
+import { SCALE, TILE, TUNING } from './tuning';
 import { chargeFramesFor } from './weight';
+
+/** Half-width of the probe that looks for a ladder under a foothold. */
+const LADDER_PROBE = Math.round(7 * SCALE);
 
 export type { CollisionWorld };
 
@@ -253,7 +256,7 @@ export function explore(grid: TileGrid, start: { x: number; y: number }, opts: R
     if (world.ladderAt) {
       for (const x of xs) {
         const cx = x + (TUNING.bodyW >> 1);
-        if (!world.ladderAt(cx - 7, feetY - TUNING.bodyH, 14, TUNING.bodyH + 6)) continue;
+        if (!world.ladderAt(cx - LADDER_PROBE, feetY - TUNING.bodyH, 2 * LADDER_PROBE, TUNING.bodyH + 6)) continue;
         for (const up of [true, false]) for (const side of [-1, 1] as const) visit([climb(world, fresh(x, feetY), up, side, lookup)]);
         break;
       }

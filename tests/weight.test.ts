@@ -58,6 +58,12 @@ describe('weight formulas (spec section 5)', () => {
     expect(jumpHeight(1, 2, { springBoots: true })).toBeCloseTo(TUNING.maxJump * 0.9 * 1.25);
   });
 
+  it('the remake scale: a full jump at no load rises 120 px, the body is 14×27', () => {
+    expect(jumpHeight(1, 0)).toBeCloseTo(120);
+    expect(TUNING.bodyW).toBe(14);
+    expect(TUNING.bodyH).toBe(27);
+  });
+
   it('launch speed reaches the requested height under gravity', () => {
     const v = launchSpeed(80);
     expect((v * v) / (2 * TUNING.gravity)).toBeCloseTo(80);

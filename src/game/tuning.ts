@@ -10,23 +10,26 @@ export const VIEW_W = 480;
 export const VIEW_H = 270;
 export const VIEW_CROP = 1;
 
+/** The remake's scale: the climber and every distance and speed of movement are 1.5× the MVP's (remake spec 5.1). */
+export const SCALE = 1.5;
+
 /**
- * Movement constants at weight 0 (spec section 4). Units: pixels, frames (60 per second).
+ * Movement constants at weight 0 (spec section 4, scaled by SCALE). Units: pixels, frames (60 per second).
  * Kept mutable so tuning and debug tools can change them live.
  */
 export const TUNING = {
-  gravity: 0.3,
-  maxFall: 9,
-  walkSpeed: 1.0,
+  gravity: 0.3 * SCALE,
+  maxFall: 9 * SCALE,
+  walkSpeed: 1.0 * SCALE,
   chargeFrames: 36,
-  minJump: 12,
-  maxJump: 80,
-  jumpSpeedX: 2.2,
+  minJump: 12 * SCALE,
+  maxJump: 80 * SCALE,
+  jumpSpeedX: 2.2 * SCALE,
   wallBounce: 0.5,
-  hardLandingFall: 136,
+  hardLandingFall: 136 * SCALE,
   stumbleFrames: 40,
-  overloadedHop: 14,
-  bodyW: 10,
-  bodyH: 18,
+  overloadedHop: 14 * SCALE,
+  bodyW: 14,
+  bodyH: 27,
   cameraSlideFrames: 11,
 };
